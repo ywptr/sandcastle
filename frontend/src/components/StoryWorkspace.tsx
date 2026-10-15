@@ -16,6 +16,25 @@ interface StoryWorkspaceProps {
     story: Story;
 }
 
+export function StoryWorkspace({
+    story,
+}: StoryWorkspaceProps) {
+    const [canon, setCanon] =
+        useState<CanonEntry[]>([]);
+
+    const [actions, setActions] =
+        useState<StoryAction[]>([]);
+
+    const [actionRequest, setActionRequest] =
+        useState("");
+
+    const [submitting, setSubmitting] =
+        useState(false);
+
+    const [error, setError] =
+        useState<string | null>(null);
+
+
     async function handleCreateCanon(
         type: string,
         key: string,
@@ -35,25 +54,6 @@ interface StoryWorkspaceProps {
 
         return entry;
     }
-
-export function StoryWorkspace({
-    story,
-}: StoryWorkspaceProps) {
-    const [canon, setCanon] =
-        useState<CanonEntry[]>([]);
-
-    const [actions, setActions] =
-        useState<StoryAction[]>([]);
-
-    const [actionRequest, setActionRequest] =
-        useState("");
-
-    const [submitting, setSubmitting] =
-        useState(false);
-
-    const [error, setError] =
-        useState<string | null>(null);
-
 
     async function loadCanon() {
         const result = await listCanon(
