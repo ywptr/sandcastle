@@ -1,122 +1,135 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import { useEffect, useState } from "react";
+
+import {
+    listStories,
+    type Story,
+} from "./api/sandcastle";
+
+import { StorySelector } from "./components/StorySelector";
+import { StoryWorkspace } from "./components/StoryWorkspace";
+
 
 function App() {
-  const [count, setCount] = useState(0)
+    const [stories, setStories] =
+        useState<Story[]>([]);
+    const [selectedStory, setSelectedStory] =
+        useState<Story | null>(null);
 
-  return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    const [loading, setLoading] =
+        useState(true);
 
-      <div className="ticks"></div>
+    const [error, setError] =
+        useState<string | null>(null);
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+    async function loadStory() {
+        try {
+            const result =
+                await listStories();
+
+            setStories(result);
+
+            setSelectedStory(
+              result.length > 0
+              ? result[0]
+              : null
+            );
+
+        } catch (error) {
+            setError(
+                error instanceof Error
+                    ? error.message
+                    : "Failed to load Sandcastle"
+            );
+
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    function handleStoryCreated(
+      story: Story, 
+    ) {
+      setStories((current) => [
+        story,
+        ...current,
+      ]);
+
+      setSelectedStory(story);
+    }
+
+
+
+
+    useEffect(() => {
+        loadStory();
+    }, []);
+
+
+    if (loading) {
+        return (
+            <div className="loading">
+                Loading Sandcastle…
+            </div>
+        );
+    }
+
+
+    if (error) {
+        return (
+            <div className="loading">
+                {error}
+            </div>
+        );
+    }
+
+
+    return (
+        <div className="app">
+            <header className="app-header">
+                <div className="brand">
+                    <strong>
+                        Sandcastle
+                    </strong>
+
+                    <span>
+                        Story & Canon
+                    </span>
+                </div>
+            </header>
+
+          <div className="app-body">
+          
+              <StorySelector
+                  stories={stories}
+                  selectedStoryId={
+                      selectedStory?.story_id
+                      ?? null
+                  }
+                  onSelect={setSelectedStory}
+                  onCreated={handleStoryCreated}
+              />
+          
+              <div className="app-content">
+                  {selectedStory ? (
+                      <StoryWorkspace
+                          story={selectedStory}
+                      />
+                  ) : (
+                      <div className="empty-state">
+                          <h1>Create your first story</h1>
+          
+                          <p>
+                              Start by creating a story
+                              from the Stories panel.
+                          </p>
+                      </div>
+                  )}
+              </div>
+          
+          </div>
+        </div>
+    );
 }
 
-export default App
+export default App;
