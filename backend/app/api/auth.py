@@ -156,7 +156,7 @@ async def callback(
         session_token,
         httponly=True,
         secure=config.cookie_secure,
-        samesite="none",
+        samesite="lax",
         max_age=SESSION_MAX_AGE,
         path="/",
     )
