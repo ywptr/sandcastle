@@ -10,6 +10,7 @@ dependencies = [
     "alembic",
     "psycopg[binary]",
     "python-dotenv",
+    "httpx",
 ]
 
 [tool.setuptools]
