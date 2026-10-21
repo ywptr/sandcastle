@@ -11,6 +11,7 @@ dependencies = [
     "psycopg[binary]",
     "python-dotenv",
     "httpx",
+    "itsdangerous",
 ]
 
 [tool.setuptools]
