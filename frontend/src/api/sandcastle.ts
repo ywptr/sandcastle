@@ -54,14 +54,24 @@ async function request<T>(
     options?: RequestInit,
 ): Promise<T> {
     const response = await fetch(
-        `${API_BASE_URL}${path}`,
-        options,
+        `${API_BASE_URL}${path}`, {
+            credentials: "include",
+            ...options,
+        },
     );
 
     if (!response.ok) {
         throw new Error(
             `Request failed: ${response.status}`
         );
+    }
+
+    const contentType = response.headers.get("content-type");
+
+    if (
+        !contentType?.includes("application/json")
+    ) {
+        return undefined as T;
     }
 
     return response.json();
@@ -155,6 +165,27 @@ export function createAction(
                 action_type: actionType,
                 request: actionRequest,
             }),
+        },
+    );
+}
+
+export interface AuthUser {
+    user_id: string;
+    email: string;
+    name: string | null;
+}
+
+export function getCurrentUser() {
+    return request<AuthUser>(
+        "/auth/me"
+    );
+}
+
+export async function logout() {
+    await request<void>(
+        "/auth/logout",
+        {
+            method: "POST",
         },
     );
 }

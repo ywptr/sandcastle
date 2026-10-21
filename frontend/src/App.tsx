@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 
 import {
+    getCurrentUser,
+    logout,
+    type AuthUser,
     listStories,
     type Story,
 } from "./api/sandcastle";
@@ -10,17 +13,27 @@ import { StoryWorkspace } from "./components/StoryWorkspace";
 
 
 function App() {
-    const [stories, setStories] =
-        useState<Story[]>([]);
-    const [selectedStory, setSelectedStory] =
-        useState<Story | null>(null);
+    const [stories, setStories] = useState<Story[]>([]);
+    const [selectedStory, setSelectedStory] = useState<Story | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [user, setUser] = useState<AuthUser | null>(null);
+    const [authLoading, setAuthLoading] = useState(true);
 
-    const [loading, setLoading] =
-        useState(true);
+    async function loadUser() {
+    try {
+        const result =
+            await getCurrentUser();
 
-    const [error, setError] =
-        useState<string | null>(null);
+        setUser(result);
 
+    } catch {
+        setUser(null);
+
+    } finally {
+        setAuthLoading(false);
+    }
+}
 
     async function loadStory() {
         try {
@@ -58,13 +71,63 @@ function App() {
       setSelectedStory(story);
     }
 
+    function handleLogin() {
+        window.location.href =
+            `${import.meta.env.VITE_API_BASE_URL}/auth/login`;
+    }
 
+
+    async function handleLogout() {
+        try {
+            await logout();
+        } finally {
+            setUser(null);
+            setStories([]);
+            setSelectedStory(null);
+        }
+    }
 
 
     useEffect(() => {
-        loadStory();
+        loadUser();
     }, []);
 
+    useEffect(() => {
+        if (user) {
+            loadStory();
+        }
+    }, [user]);
+
+
+    if (authLoading) {
+        return (
+            <div className="loading">
+                Checking session…
+            </div>
+        );
+    }
+
+
+    if (!user) {
+        return (
+            <div className="auth-screen">
+                <div className="auth-card">
+                    <h1>Sandcastle</h1>
+
+                    <p>
+                        Sign in to continue to your stories and canon.
+                    </p>
+
+                    <button
+                        className="primary-button"
+                        onClick={handleLogin}
+                    >
+                        Sign in
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     if (loading) {
         return (
@@ -74,7 +137,6 @@ function App() {
         );
     }
 
-
     if (error) {
         return (
             <div className="loading">
@@ -82,7 +144,6 @@ function App() {
             </div>
         );
     }
-
 
     return (
         <div className="app">
