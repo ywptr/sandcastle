@@ -37,6 +37,9 @@ function App() {
 
     async function loadStory() {
         try {
+            setLoading(true);
+            setError(null);
+
             const result =
                 await listStories();
 
@@ -84,6 +87,8 @@ function App() {
             setUser(null);
             setStories([]);
             setSelectedStory(null);
+            setLoading(true);
+            setError(null);
         }
     }
 
@@ -156,6 +161,24 @@ function App() {
                     <span>
                         Story & Canon
                     </span>
+                </div>
+                <div className="user-menu">
+                    <div>
+                        <strong>
+                            {user.name ?? user.email}
+                        </strong>
+            
+                        <span>
+                            {user.email}
+                        </span>
+                    </div>
+            
+                    <button
+                        className="secondary-button"
+                        onClick={handleLogout}
+                    >
+                        Sign out from Sandcastle
+                    </button>
                 </div>
             </header>
 
