@@ -1,7 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from app.api.dependencies import get_db
+from app.api.dependencies import (
+    get_current_identity,
+    get_db,
+)
+from app.auth.port import AuthenticatedIdentity
 from app.canon.schemas import (
     CanonEntryCreate,
     CanonEntryResponse,
@@ -44,10 +48,12 @@ authority_evaluator = LocalAuthorityEvaluator()
 def require_story(
     db: Session,
     story_id: str,
+    identity: AuthenticatedIdentity,
 ):
     story = get_story(
         db,
         story_id,
+        identity.user_id,
     )
 
     if story is None:
@@ -82,14 +88,18 @@ def action_to_list_item(
     status_code=201,
 )
 def create_story_endpoint(
-    request: StoryCreate,
+    payload: StoryCreate,
     db: Session = Depends(get_db),
+    identity: AuthenticatedIdentity = Depends(
+        get_current_identity
+    ),
 ):
     return create_story(
         db,
-        title=request.title,
-        premise=request.premise,
-        objective=request.objective,
+        identity.user_id,
+        payload.title,
+         payload.premise,
+         payload.objective,
     )
 
 
@@ -99,8 +109,14 @@ def create_story_endpoint(
 )
 def list_stories_endpoint(
     db: Session = Depends(get_db),
+    identity: AuthenticatedIdentity = Depends(
+        get_current_identity
+    ),
 ):
-    return list_stories(db)
+    return list_stories(
+        db,
+        identity.user_id,
+    )
 
 
 @router.get(
@@ -110,10 +126,14 @@ def list_stories_endpoint(
 def get_story_endpoint(
     story_id: str,
     db: Session = Depends(get_db),
+    identity: AuthenticatedIdentity = Depends(
+        get_current_identity
+    ),
 ):
     return require_story(
         db,
         story_id,
+        identity,
     )
 
 
@@ -126,10 +146,14 @@ def create_canon_entry_endpoint(
     story_id: str,
     request: CanonEntryCreate,
     db: Session = Depends(get_db),
+    identity: AuthenticatedIdentity = Depends(
+        get_current_identity
+    ),
 ):
     require_story(
         db,
         story_id,
+        identity,
     )
 
     return create_canon_entry(
@@ -148,10 +172,14 @@ def create_canon_entry_endpoint(
 def list_canon_entries_endpoint(
     story_id: str,
     db: Session = Depends(get_db),
+    identity: AuthenticatedIdentity = Depends(
+        get_current_identity
+    ),
 ):
     require_story(
         db,
         story_id,
+        identity,
     )
 
     return list_canon_entries(
@@ -172,6 +200,7 @@ def create_story_action_endpoint(
     story = require_story(
         db,
         story_id,
+        identity,
     )
 
     action = create_story_action(
@@ -209,6 +238,7 @@ def list_story_actions_endpoint(
     require_story(
         db,
         story_id,
+        identity,
     )
 
     actions = list_story_actions(
