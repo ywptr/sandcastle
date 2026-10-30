@@ -1,13 +1,6 @@
-from dataclasses import dataclass
 from typing import Protocol
 
-
-@dataclass
-class AuthenticatedIdentity:
-    user_id: str
-    email: str
-    name: str | None
-
+from app.auth.identity import AuthenticatedIdentity
 
 class IdentityRejected(Exception):
     pass

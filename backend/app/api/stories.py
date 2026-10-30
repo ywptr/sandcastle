@@ -5,7 +5,8 @@ from app.api.dependencies import (
     get_current_identity,
     get_db,
 )
-from app.auth.port import AuthenticatedIdentity
+from app.auth.identity import AuthenticatedIdentity
+from app.authority.adapters.local import LocalAuthorityEvaluator
 from app.canon.schemas import (
     CanonEntryCreate,
     CanonEntryResponse,
@@ -13,6 +14,20 @@ from app.canon.schemas import (
 from app.canon.service import (
     create_canon_entry,
     list_canon_entries,
+)
+from app.db.models.story import Story
+from app.stories.action_queries import (
+    get_latest_decision,
+    list_story_actions,
+)
+from app.stories.action_schemas import (
+    StoryActionCreate,
+    StoryActionListItem,
+    StoryActionResponse,
+)
+from app.stories.action_service import (
+    create_story_action,
+    evaluate_story_action,
 )
 from app.stories.schemas import (
     StoryCreate,
@@ -22,20 +37,6 @@ from app.stories.service import (
     create_story,
     get_story,
     list_stories,
-)
-from app.authority.adapters.local import LocalAuthorityEvaluator
-from app.stories.action_schemas import (
-    StoryActionCreate,
-    StoryActionListItem,
-    StoryActionResponse,
-)
-from app.stories.action_queries import (
-    get_latest_decision,
-    list_story_actions,
-)
-from app.stories.action_service import (
-    create_story_action,
-    evaluate_story_action,
 )
 
 router = APIRouter(
@@ -49,7 +50,7 @@ def require_story(
     db: Session,
     story_id: str,
     identity: AuthenticatedIdentity,
-):
+) -> Story:
     story = get_story(
         db,
         story_id,
@@ -82,6 +83,20 @@ def action_to_list_item(
         decision=decision,
     )
 
+def action_to_response(
+    action,
+    decision,
+) -> StoryActionResponse:
+    return StoryActionResponse(
+        action_id=action.action_id,
+        story_id=action.story_id,
+        action_type=action.action_type,
+        request=action.request,
+        status=action.status,
+        created_at=action.created_at,
+        decision=decision,
+    )
+
 @router.post(
     "",
     response_model=StoryResponse,
@@ -98,8 +113,8 @@ def create_story_endpoint(
         db,
         identity.user_id,
         payload.title,
-         payload.premise,
-         payload.objective,
+        payload.premise,
+        payload.objective,
     )
 
 
@@ -196,6 +211,9 @@ def create_story_action_endpoint(
     story_id: str,
     request: StoryActionCreate,
     db: Session = Depends(get_db),
+    identity: AuthenticatedIdentity = Depends(
+        get_current_identity
+    ),
 ):
     story = require_story(
         db,
@@ -217,14 +235,9 @@ def create_story_action_endpoint(
         evaluator=authority_evaluator,
     )
 
-    return StoryActionResponse(
-        action_id=action.action_id,
-        story_id=action.story_id,
-        action_type=action.action_type,
-        request=action.request,
-        status=action.status,
-        created_at=action.created_at,
-        decision=decision,
+    return action_to_response(
+        action,
+        decision,
     )
 
 @router.get(
@@ -234,6 +247,9 @@ def create_story_action_endpoint(
 def list_story_actions_endpoint(
     story_id: str,
     db: Session = Depends(get_db),
+    identity: AuthenticatedIdentity = Depends(
+        get_current_identity
+    ),
 ):
     require_story(
         db,
