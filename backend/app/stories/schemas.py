@@ -11,7 +11,7 @@ class StoryCreate(BaseModel):
 
 class StoryResponse(BaseModel):
     story_id: str
-    user_id: str | None
+    user_id: str
     title: str
     premise: str | None
     objective: str | None
