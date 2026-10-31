@@ -39,12 +39,27 @@ from app.stories.service import (
     list_stories,
 )
 
+from app.stories.adapters.openai_generator import (
+    OpenAIStoryGenerator,
+)
+from app.stories.scene_schemas import (
+    SceneGenerateRequest,
+    SceneGenerateResponse,
+    SceneResponse,
+)
+from app.stories.scene_service import (
+    generate_scene,
+    list_scenes,
+)
+
 router = APIRouter(
     prefix="/stories",
     tags=["stories"],
 )
 
 authority_evaluator = LocalAuthorityEvaluator()
+
+story_generator = OpenAIStoryGenerator()
 
 def require_story(
     db: Session,
