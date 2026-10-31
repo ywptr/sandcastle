@@ -245,3 +245,69 @@
 
     font-size: 0.7rem;
 }
+
+.scenes-panel {
+    margin-top: 1.5rem;
+}
+
+
+.scene-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+
+.scene {
+    padding: 1.5rem;
+
+    border: 1px solid #e7e5e4;
+    border-radius: 12px;
+
+    background: white;
+}
+
+
+.scene-heading {
+    margin-bottom: 1rem;
+
+    color: #78716c;
+
+    font-size: 0.75rem;
+    font-weight: 700;
+
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+
+.scene-content {
+    max-width: 760px;
+
+    margin: 0 auto;
+
+    font-family:
+        Georgia,
+        "Times New Roman",
+        serif;
+
+    font-size: 1.05rem;
+    line-height: 1.75;
+}
+
+
+.scene-content p {
+    margin:
+        0
+        0
+        1rem;
+}
+
+
+.scene-empty {
+    padding: 2rem;
+
+    text-align: center;
+
+    color: #78716c;
+}

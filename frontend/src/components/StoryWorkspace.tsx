@@ -2,10 +2,12 @@ import { useEffect, useState } from "react";
 
 import {
     createCanonEntry,
-    createAction,
+    generateScene,
     listActions,
     listCanon,
+    listScenes,
     type CanonEntry,
+    type Scene,
     type Story,
     type StoryAction,
 } from "../api/sandcastle";
@@ -27,6 +29,9 @@ export function StoryWorkspace({
 
     const [actionRequest, setActionRequest] =
         useState("");
+
+    const [scenes, setScenes] =
+        useState<Scene[]>([]);
 
     const [submitting, setSubmitting] =
         useState(false);
@@ -63,6 +68,14 @@ export function StoryWorkspace({
         setCanon(result);
     }
 
+    async function loadScenes() {
+        const result = await listScenes(
+            story.story_id
+        );
+
+        setScenes(result);
+    }
+
 
     async function loadActions() {
         const result = await listActions(
@@ -80,6 +93,7 @@ export function StoryWorkspace({
             await Promise.all([
                 loadCanon(),
                 loadActions(),
+                loadScenes(),
             ]);
         } catch (error) {
             setError(
@@ -103,15 +117,17 @@ export function StoryWorkspace({
             setSubmitting(true);
             setError(null);
 
-            await createAction(
+            await generateScene(
                 story.story_id,
-                "scene.generate",
                 request,
             );
 
             setActionRequest("");
 
-            await loadActions();
+            await Promise.all([
+                loadActions(),
+                loadScenes(),
+            ]);
         } catch (error) {
             setError(
                 error instanceof Error
@@ -221,8 +237,8 @@ export function StoryWorkspace({
                         }
                     >
                         {submitting
-                            ? "Evaluating…"
-                            : "Submit action"}
+                            ? "Writing scene…"
+                            : "Generate scene"}
                     </button>
                 </section>
 
@@ -282,6 +298,60 @@ export function StoryWorkspace({
                         </article>
                     ))}
                 </div>
+            </section>
+
+            <section className="panel scenes-panel">
+                <div className="panel-heading">
+                    <h2>Story</h2>
+
+                    <span>
+                        {scenes.length} scenes
+                    </span>
+                </div>
+
+                {scenes.length === 0 ? (
+                    <div className="scene-empty">
+                        <p>No scenes yet.</p>
+
+                        <span>
+                            Describe what should happen
+                            next and generate the first scene.
+                        </span>
+                    </div>
+                ) : (
+                    <div className="scene-list">
+                        {scenes.map((scene) => (
+                            <article
+                                key={scene.scene_id}
+                                className="scene"
+                            >
+                                <div className="scene-heading">
+                                    Scene {
+                                        scene.sequence_number
+                                    }
+                                </div>
+
+                                <div className="scene-content">
+                                    {scene.content
+                                        .split("\n")
+                                        .map(
+                                            (
+                                                paragraph,
+                                                index,
+                                            ) =>
+                                                paragraph.trim()
+                                                ? (
+                                                    <p key={index}>
+                                                        {paragraph}
+                                                    </p>
+                                                )
+                                                : null
+                                        )}
+                                </div>
+                            </article>
+                        ))}
+                    </div>
+                )}
             </section>
 
         </main>

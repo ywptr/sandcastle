@@ -45,6 +45,53 @@ export interface StoryAction {
     decision: AuthorityDecision | null;
 }
 
+export interface Scene {
+    scene_id: string;
+    story_id: string;
+    source_action_id: string | null;
+    sequence_number: number;
+    title: string | null;
+    content: string;
+    status: string;
+    created_at: string;
+    updated_at: string;
+}
+
+
+export interface SceneGenerateResponse {
+    action: StoryAction;
+    scene: Scene | null;
+}
+
+
+export function listScenes(
+    storyId: string,
+) {
+    return request<Scene[]>(
+        `/stories/${storyId}/scenes`
+    );
+}
+
+
+export function generateScene(
+    storyId: string,
+    sceneRequest: string,
+) {
+    return request<SceneGenerateResponse>(
+        `/stories/${storyId}/scenes/generate`,
+        {
+            method: "POST",
+            headers: {
+                "Content-Type":
+                    "application/json",
+            },
+            body: JSON.stringify({
+                request: sceneRequest,
+            }),
+        },
+    );
+}
+
 const API_BASE_URL =
     import.meta.env.VITE_API_BASE_URL
     ?? "/api";
