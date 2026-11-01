@@ -61,6 +61,91 @@ authority_evaluator = LocalAuthorityEvaluator()
 
 story_generator = OpenAIStoryGenerator()
 
+@router.get(
+    "/{story_id}/scenes",
+    response_model=list[SceneResponse],
+)
+def list_scenes_endpoint(
+    story_id: str,
+    db: Session = Depends(get_db),
+    identity: AuthenticatedIdentity = Depends(
+        get_current_identity
+    ),
+):
+    story = require_story(
+        db,
+        story_id,
+        identity,
+    )
+
+    return list_scenes(
+        db,
+        story.story_id,
+    )
+
+@router.post(
+    "/{story_id}/scenes/generate",
+    response_model=SceneGenerateResponse,
+)
+async def generate_scene_endpoint(
+    story_id: str,
+    request: SceneGenerateRequest,
+    db: Session = Depends(get_db),
+    identity: AuthenticatedIdentity = Depends(
+        get_current_identity
+    ),
+):
+    story = require_story(
+        db,
+        story_id,
+        identity,
+    )
+
+    action = create_story_action(
+        db,
+        story=story,
+        action_type="scene.generate",
+        request=request.request,
+    )
+
+    decision = evaluate_story_action(
+        db,
+        story=story,
+        action=action,
+        evaluator=authority_evaluator,
+    )
+
+    if decision.outcome != "ALLOW":
+        return SceneGenerateResponse(
+            action=action_to_response(
+                action,
+                decision,
+            ),
+            scene=None,
+        )
+
+    canon_entries = list_canon_entries(
+        db,
+        story.story_id,
+    )
+
+    scene = await generate_scene(
+        db,
+        story=story,
+        action_id=action.action_id,
+        request=request.request,
+        canon_entries=canon_entries,
+        generator=story_generator,
+    )
+
+    return SceneGenerateResponse(
+        action=action_to_response(
+            action,
+            decision,
+        ),
+        scene=scene,
+    )
+
 def require_story(
     db: Session,
     story_id: str,
