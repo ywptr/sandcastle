@@ -212,9 +212,9 @@ def create_story_endpoint(
     return create_story(
         db,
         identity.user_id,
-        payload.title,
-        payload.premise,
-        payload.objective,
+        title=payload.title,
+        premise=payload.premise,
+        objective=payload.objective,
     )
 
 
