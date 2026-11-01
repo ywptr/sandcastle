@@ -12,6 +12,7 @@ dependencies = [
     "python-dotenv",
     "httpx",
     "itsdangerous",
+    "openai",
 ]
 
 [tool.setuptools]
