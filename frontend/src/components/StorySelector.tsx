@@ -20,6 +20,8 @@ export function StorySelector({
     onSelect,
     onCreated,
 }: StorySelectorProps) {
+    const [saving, setSaving] = useState(false);
+
     const [creating, setCreating] =
         useState(false);
 
@@ -51,6 +53,7 @@ export function StorySelector({
 
 
     async function handleCreate() {
+        if (saving) return;
         const cleanTitle = title.trim();
 
         if (!cleanTitle) {
@@ -59,6 +62,7 @@ export function StorySelector({
         }
 
         try {
+            setSaving(true);
             setError(null);
 
             const story = await createStory({
@@ -82,6 +86,8 @@ export function StorySelector({
                     ? error.message
                     : "Failed to create story"
             );
+        } finally {
+            setSaving(false);
         }
     }
 
@@ -184,6 +190,7 @@ export function StorySelector({
                     <div className="story-create-actions">
                         <button
                             className="secondary-button"
+                            disabled={saving}
                             onClick={cancelCreate}
                         >
                             Cancel
@@ -191,6 +198,7 @@ export function StorySelector({
 
                         <button
                             className="primary-button"
+                            disabled={saving}
                             onClick={handleCreate}
                         >
                             Create

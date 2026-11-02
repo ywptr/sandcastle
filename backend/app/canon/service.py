@@ -41,3 +41,16 @@ def list_canon_entries(
     return list(
         db.scalars(statement).all()
     )
+
+def get_canon_entry(db: Session, story_id: str, entry_id: str) -> CanonEntry | None:
+    return db.scalar(select(CanonEntry).where(
+        CanonEntry.story_id == story_id, CanonEntry.canon_entry_id == entry_id,
+    ))
+
+
+def update_canon_entry(db: Session, entry: CanonEntry, **changes) -> CanonEntry:
+    for field, value in changes.items():
+        setattr(entry, field, value)
+    db.commit()
+    db.refresh(entry)
+    return entry

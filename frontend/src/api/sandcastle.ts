@@ -1,5 +1,6 @@
 export interface Story {
     story_id: string;
+    user_id: string;
     title: string;
     premise: string | null;
     objective: string | null;
@@ -118,6 +119,19 @@ const API_BASE_URL =
     import.meta.env.VITE_API_BASE_URL
     ?? "/api";
 
+export class ApiError extends Error {
+    status: number;
+
+    constructor(status: number, message: string) {
+        super(message);
+        this.status = status;
+    }
+}
+
+export function loginUrl() {
+    return `${API_BASE_URL}/auth/login`;
+}
+
 async function request<T>(
     path: string,
     options?: RequestInit,
@@ -130,9 +144,12 @@ async function request<T>(
     );
 
     if (!response.ok) {
-        throw new Error(
-            `Request failed: ${response.status}`
-        );
+        const payload = await response.json().catch(() => null);
+        const detail = payload?.detail;
+        const message = typeof detail === "string" ? detail
+            : Array.isArray(detail) ? detail.map((item: { msg: string }) => item.msg).join("; ")
+            : `Request failed: ${response.status}`;
+        throw new ApiError(response.status, message);
     }
 
     const contentType = response.headers.get("content-type");
@@ -257,4 +274,76 @@ export async function logout() {
             method: "POST",
         },
     );
+}
+
+
+export interface CharacterInput {
+    name: string;
+    description: string;
+    appearance: string;
+    outfit: string;
+    personality: string;
+}
+
+export interface Character extends CharacterInput {
+    character_id: string;
+    story_id: string;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface PlaceInput {
+    name: string;
+    description: string;
+    appearance: string;
+    atmosphere: string;
+}
+
+export interface Place extends PlaceInput {
+    place_id: string;
+    story_id: string;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface CanonInput {
+    type: string;
+    key: string;
+    value: string;
+}
+
+function write<T>(path: string, method: "POST" | "PATCH", body: object) {
+    return request<T>(path, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+    });
+}
+
+export function updateStory(storyId: string, input: Partial<StoryCreateInput>) {
+    return write<Story>(`/stories/${storyId}`, "PATCH", input);
+}
+
+export function listCharacters(storyId: string) {
+    return request<Character[]>(`/stories/${storyId}/characters`);
+}
+
+export function saveCharacter(storyId: string, id: string | null, input: CharacterInput) {
+    return write<Character>(`/stories/${storyId}/characters${id ? `/${id}` : ""}`, id ? "PATCH" : "POST", input);
+}
+
+export function listPlaces(storyId: string) {
+    return request<Place[]>(`/stories/${storyId}/places`);
+}
+
+export function savePlace(storyId: string, id: string | null, input: PlaceInput) {
+    return write<Place>(`/stories/${storyId}/places${id ? `/${id}` : ""}`, id ? "PATCH" : "POST", input);
+}
+
+export function updateCanon(storyId: string, id: string, input: Partial<CanonInput> & { status?: "approved" | "superseded" }) {
+    return write<CanonEntry>(`/stories/${storyId}/canon/${id}`, "PATCH", input);
+}
+
+export function createScene(storyId: string, title: string | null, content: string) {
+    return write<Scene>(`/stories/${storyId}/scenes`, "POST", { title, content });
 }

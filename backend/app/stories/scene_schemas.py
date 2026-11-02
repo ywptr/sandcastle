@@ -1,14 +1,21 @@
 from datetime import datetime
 
 from pydantic import BaseModel
+from app.validation import InputModel, Name, NonBlank, PatchModel
 
 from app.stories.action_schemas import (
     StoryActionResponse,
 )
 
-class SceneUpdate(BaseModel):
-    title: str | None = None
-    content: str
+class SceneCreate(InputModel):
+    title: Name | None = None
+    content: NonBlank
+
+
+class SceneUpdate(PatchModel):
+    nullable_fields = {"title"}
+    title: Name | None = None
+    content: NonBlank | None = None
 
 class SceneResponse(BaseModel):
     scene_id: str
@@ -26,8 +33,8 @@ class SceneResponse(BaseModel):
     }
 
 
-class SceneGenerateRequest(BaseModel):
-    request: str
+class SceneGenerateRequest(InputModel):
+    request: NonBlank
 
 
 class SceneGenerateResponse(BaseModel):

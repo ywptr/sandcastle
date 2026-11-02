@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.auth import router as auth_router
 from app.api.stories import router as stories_router
+from app.api.world import router as world_router
 
 app = FastAPI(
     title="Sandcastle",
@@ -35,6 +36,9 @@ app.include_router(
     stories_router,
     prefix="/api",
 )
+
+app.include_router(world_router, prefix="/api")
+
 
 @app.get("/health")
 def health():

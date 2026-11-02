@@ -4,8 +4,13 @@ from app.db.models.story_action import StoryAction
 from app.db.models.authority_decision import AuthorityDecision
 from app.db.models.scene import Scene
 
+from app.db.models.character import Character
+from app.db.models.place import Place
+
 __all__ = [
     "Story",
+    "Character",
+    "Place",
     "CanonEntry",
     "StoryAction",
     "AuthorityDecision",

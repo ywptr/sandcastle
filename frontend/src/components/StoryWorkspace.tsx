@@ -1,468 +1,139 @@
 import { useEffect, useState } from "react";
-
 import {
-    createCanonEntry,
-    generateScene,
-    listActions,
-    listCanon,
-    listScenes,
-    updateScene,
-    type CanonEntry,
-    type Scene,
-    type Story,
-    type StoryAction,
+    createCanonEntry, listActions, listCanon, listCharacters, listPlaces, listScenes,
+    saveCharacter, savePlace, updateCanon, updateStory,
+    type CanonEntry, type Character, type Place, type Scene, type Story, type StoryAction,
 } from "../api/sandcastle";
+import { RecordEditor, type EditorField } from "./RecordEditor";
+import { WorldPanel } from "./WorldPanel";
+import { ScenePanel } from "./ScenePanel";
 
-import { CanonForm } from "./CanonForm";
+const characterFields: EditorField[] = [
+    { name: "name", label: "Name", required: true, maxLength: 255 },
+    ...["description", "appearance", "outfit", "personality"].map((name) => ({
+        name, label: name[0].toUpperCase() + name.slice(1), multiline: true,
+    })),
+];
+const placeFields: EditorField[] = [
+    characterFields[0],
+    ...["description", "appearance", "atmosphere"].map((name) => ({
+        name, label: name[0].toUpperCase() + name.slice(1), multiline: true,
+    })),
+];
+const canonFields: EditorField[] = [
+    { name: "type", label: "Type (e.g. character, location, rule)", required: true, maxLength: 50 },
+    { name: "key", label: "Key (e.g. character.mara.eye_color)", required: true, maxLength: 255 },
+    { name: "value", label: "Authoritative fact", required: true, multiline: true },
+    { name: "status", label: "Status", options: ["approved", "superseded"] },
+];
+const storyFields: EditorField[] = [
+    { name: "title", label: "Title", required: true, maxLength: 255 },
+    { name: "premise", label: "Premise", multiline: true },
+    { name: "objective", label: "Objective", multiline: true },
+];
 
-interface StoryWorkspaceProps {
-    story: Story;
+function upsert<T>(items: T[], item: T, id: (entry: T) => string): T[] {
+    return items.some((entry) => id(entry) === id(item))
+        ? items.map((entry) => id(entry) === id(item) ? item : entry) : [...items, item];
 }
 
-export function StoryWorkspace({
-    story,
-}: StoryWorkspaceProps) {
-    const [canon, setCanon] =
-        useState<CanonEntry[]>([]);
+interface Props {
+    story: Story;
+    onStoryUpdated: (story: Story) => void;
+}
 
-    const [actions, setActions] =
-        useState<StoryAction[]>([]);
-
-    const [actionRequest, setActionRequest] =
-        useState("");
-
-    const [scenes, setScenes] =
-        useState<Scene[]>([]);
-
-    const [submitting, setSubmitting] =
-        useState(false);
-
-    const [error, setError] =
-        useState<string | null>(null);
-
-    const [editingSceneId, setEditingSceneId] =
-        useState<string | null>(null);
-
-    const [editingTitle, setEditingTitle] =
-        useState("");
-
-    const [editingContent, setEditingContent] =
-        useState("");
-
-    async function handleCreateCanon(
-        type: string,
-        key: string,
-        value: string,
-    ) {
-        const entry = await createCanonEntry(
-            story.story_id,
-            type,
-            key,
-            value,
-        );
-
-        setCanon((current) => [
-            ...current,
-            entry,
-        ]);
-
-        return entry;
-    }
-
-    async function loadCanon() {
-        const result = await listCanon(
-            story.story_id
-        );
-
-        setCanon(result);
-    }
-
-    async function loadScenes() {
-        const result = await listScenes(
-            story.story_id
-        );
-
-        setScenes(result);
-    }
-
-
-    async function loadActions() {
-        const result = await listActions(
-            story.story_id
-        );
-
-        setActions(result);
-    }
-
-
-    async function loadWorkspace() {
-        try {
-            setError(null);
-
-            await Promise.all([
-                loadCanon(),
-                loadActions(),
-                loadScenes(),
-            ]);
-        } catch (error) {
-            setError(
-                error instanceof Error
-                    ? error.message
-                    : "Failed to load story"
-            );
-        }
-    }
-
-
-    async function handleSubmitAction() {
-        const request =
-            actionRequest.trim();
-
-        if (!request || submitting) {
-            return;
-        }
-
-        try {
-            setSubmitting(true);
-            setError(null);
-
-            await generateScene(
-                story.story_id,
-                request,
-            );
-
-            setActionRequest("");
-
-            await Promise.all([
-                loadActions(),
-                loadScenes(),
-            ]);
-        } catch (error) {
-            setError(
-                error instanceof Error
-                    ? error.message
-                    : "Failed to submit action"
-            );
-        } finally {
-            setSubmitting(false);
-        }
-    }
-
-    function beginEditScene(
-        scene: Scene,
-    ) {
-        setEditingSceneId(
-            scene.scene_id
-        );
-
-        setEditingTitle(
-            scene.title ?? ""
-        );
-
-        setEditingContent(
-            scene.content
-        );
-    }
-
-
-    function cancelEditScene() {
-        setEditingSceneId(null);
-        setEditingTitle("");
-        setEditingContent("");
-    }
-
-
-    async function saveScene(
-        scene: Scene,
-    ) {
-        const updated = await updateScene(
-            story.story_id,
-            scene.scene_id,
-            editingTitle.trim() || null,
-            editingContent.trim(),
-        );
-
-        setScenes((current) =>
-            current.map((item) =>
-                item.scene_id === updated.scene_id
-                    ? updated
-                    : item
-            )
-        );
-
-        cancelEditScene();
-    }
-
+export function StoryWorkspace({ story, onStoryUpdated }: Props) {
+    const [characters, setCharacters] = useState<Character[]>([]);
+    const [places, setPlaces] = useState<Place[]>([]);
+    const [canon, setCanon] = useState<CanonEntry[]>([]);
+    const [scenes, setScenes] = useState<Scene[]>([]);
+    const [actions, setActions] = useState<StoryAction[]>([]);
+    const [editingStory, setEditingStory] = useState(false);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [reload, setReload] = useState(0);
+    const storyId = story.story_id;
 
     useEffect(() => {
-        loadWorkspace();
-    }, [story.story_id]);
+        let active = true;
+        Promise.all([listCharacters(storyId), listPlaces(storyId), listCanon(storyId), listScenes(storyId), listActions(storyId)])
+            .then(([nextCharacters, nextPlaces, nextCanon, nextScenes, nextActions]) => {
+                if (!active) return;
+                setCharacters(nextCharacters);
+                setPlaces(nextPlaces);
+                setCanon(nextCanon);
+                setScenes(nextScenes);
+                setActions(nextActions);
+                setError(null);
+            }).catch((failure) => {
+                if (active) setError(failure instanceof Error ? failure.message : "Could not load story world.");
+            }).finally(() => { if (active) setLoading(false); });
+        return () => { active = false; };
+    }, [storyId, reload]);
 
+    if (loading) return <main className="workspace" role="status">Loading story world…</main>;
+    if (error) return <main className="workspace"><p className="error" role="alert">{error}</p>
+        <button className="secondary-button" onClick={() => { setLoading(true); setReload((value) => value + 1); }}>Retry</button></main>;
 
     return (
         <main className="workspace">
-
-            <section className="story-header">
-                <div>
-                    <span className="eyebrow">
-                        Story
-                    </span>
-
-                    <h1>{story.title}</h1>
-
-                    {story.premise && (
-                        <p>{story.premise}</p>
-                    )}
-                </div>
-            </section>
-
-
-            {error && (
-                <div className="error">
-                    {error}
-                </div>
-            )}
-
-
+            <header className="story-header">
+                <div className="panel-heading"><h1>{story.title}</h1>
+                    <button className="secondary-button" disabled={editingStory} onClick={() => setEditingStory(true)}>Edit story</button></div>
+                <p>{story.premise || "Add a premise to shape your story."}</p>
+                {story.objective && <p><strong>Objective:</strong> {story.objective}</p>}
+                {editingStory && <RecordEditor fields={storyFields}
+                    initial={{ title: story.title, premise: story.premise ?? "", objective: story.objective ?? "" }}
+                    onCancel={() => setEditingStory(false)} onSave={async (values) => {
+                        const updated = await updateStory(storyId, { title: values.title, premise: values.premise, objective: values.objective });
+                        onStoryUpdated(updated);
+                        setEditingStory(false);
+                    }} />}
+            </header>
+            <nav className="workspace-nav" aria-label="Story workspace">
+                <a href="#characters">Characters</a><a href="#places">Places</a><a href="#canon">Canon</a><a href="#scenes">Scenes</a>
+            </nav>
             <div className="workspace-grid">
-
-                <section className="panel">
-                    <div className="panel-heading">
-                        <h2>Canon</h2>
-                        <span>
-                            {canon.length} entries
-                        </span>
-                    </div>
-
-                    <CanonForm
-                        onCreate={handleCreateCanon}
-                    />                    
-
-                    <div className="canon-list">
-                        {canon.map((entry) => (
-                            <article
-                                key={
-                                    entry.canon_entry_id
-                                }
-                                className="canon-entry"
-                            >
-                                <div className="canon-meta">
-                                    <span>
-                                        {entry.type}
-                                    </span>
-
-                                    <code>
-                                        {entry.key}
-                                    </code>
-                                </div>
-
-                                <p>
-                                    {entry.value}
-                                </p>
-                            </article>
-                        ))}
-                    </div>
-                </section>
-
-
-                <section className="panel">
-                    <div className="panel-heading">
-                        <h2>Story Action</h2>
-                    </div>
-
-                    <textarea
-                        className="action-input"
-                        placeholder={
-                            "What should happen next?"
-                        }
-                        value={actionRequest}
-                        onChange={(event) =>
-                            setActionRequest(
-                                event.target.value
-                            )
-                        }
-                    />
-
-                    <button
-                        className="primary-button"
-                        disabled={submitting}
-                        onClick={
-                            handleSubmitAction
-                        }
-                    >
-                        {submitting
-                            ? "Writing scene…"
-                            : "Generate scene"}
-                    </button>
-                </section>
-
+                <WorldPanel title="Characters" singular="character" fields={characterFields}
+                    records={characters.map((item) => ({ id: item.character_id, title: item.name,
+                        values: { name: item.name, description: item.description, appearance: item.appearance, outfit: item.outfit, personality: item.personality } }))}
+                    onSave={async (id, values) => {
+                        const item = await saveCharacter(storyId, id, { name: values.name, description: values.description,
+                            appearance: values.appearance, outfit: values.outfit, personality: values.personality });
+                        setCharacters((current) => upsert(current, item, (entry) => entry.character_id));
+                    }} />
+                <WorldPanel title="Places" singular="place" fields={placeFields}
+                    records={places.map((item) => ({ id: item.place_id, title: item.name,
+                        values: { name: item.name, description: item.description, appearance: item.appearance, atmosphere: item.atmosphere } }))}
+                    onSave={async (id, values) => {
+                        const item = await savePlace(storyId, id, { name: values.name, description: values.description,
+                            appearance: values.appearance, atmosphere: values.atmosphere });
+                        setPlaces((current) => upsert(current, item, (entry) => entry.place_id));
+                    }} />
             </div>
-
-
-            <section className="panel actions-panel">
-                <div className="panel-heading">
-                    <h2>Authority Log</h2>
-
-                    <span>
-                        {actions.length} actions
-                    </span>
-                </div>
-
-                <div className="action-list">
-                    {actions.map((action) => (
-                        <article
-                            className="action-entry"
-                            key={action.action_id}
-                        >
-                            <div className="action-top">
-                                <strong>
-                                    {
-                                        action.action_type
-                                    }
-                                </strong>
-
-                                {action.decision && (
-                                    <span
-                                        className={
-                                            `decision decision-${action.decision.outcome.toLowerCase()}`
-                                        }
-                                    >
-                                        {
-                                            action
-                                                .decision
-                                                .outcome
-                                        }
-                                    </span>
-                                )}
-                            </div>
-
-                            <p>
-                                {action.request}
-                            </p>
-
-                            {action.decision && (
-                                <div className="decision-reason">
-                                    {
-                                        action
-                                            .decision
-                                            .reason
-                                    }
-                                </div>
-                            )}
-                        </article>
-                    ))}
-                </div>
-            </section>
-
-            <section className="panel scenes-panel">
-                <div className="panel-heading">
-                    <h2>Story</h2>
-
-                    <span>
-                        {scenes.length} scenes
-                    </span>
-                </div>
-
-                {scenes.length === 0 ? (
-                    <div className="scene-empty">
-                        <p>No scenes yet.</p>
-
-                        <span>
-                            Describe what should happen
-                            next and generate the first scene.
-                        </span>
-                    </div>
-                ) : (
-                    <div className="scene-list">
-                        {scenes.map((scene) => (
-                            <article
-                                key={scene.scene_id}
-                                className="scene"
-                            >
-                                {editingSceneId === scene.scene_id ? (
-                                    <>
-                                        <input
-                                            className="scene-title-input"
-                                            placeholder="Scene title"
-                                            value={editingTitle}
-                                            onChange={(event) =>
-                                                setEditingTitle(
-                                                    event.target.value
-                                                )
-                                            }
-                                        />
-
-                                        <textarea
-                                            className="scene-edit-input"
-                                            value={editingContent}
-                                            onChange={(event) =>
-                                                setEditingContent(
-                                                    event.target.value
-                                                )
-                                            }
-                                        />
-
-                                        <div className="scene-edit-actions">
-                                            <button
-                                                className="secondary-button"
-                                                onClick={cancelEditScene}
-                                            >
-                                                Cancel
-                                            </button>
-
-                                            <button
-                                                className="primary-button"
-                                                onClick={() =>
-                                                    saveScene(scene)
-                                                }
-                                            >
-                                                Save
-                                            </button>
-                                        </div>
-                                    </>
-                                ) : (
-                                    <>
-                                        <div className="scene-heading">
-                                            <span>
-                                                {scene.title
-                                                    ?? `Scene ${scene.sequence_number}`}
-                                            </span>
-
-                                            <button
-                                                className="secondary-button"
-                                                onClick={() =>
-                                                    beginEditScene(scene)
-                                                }
-                                            >
-                                                Edit
-                                            </button>
-                                        </div>
-
-                                        <div className="scene-content">
-                                            {scene.content
-                                                .split("\n")
-                                                .map(
-                                                    (
-                                                        paragraph,
-                                                        index,
-                                                    ) =>
-                                                        paragraph.trim()
-                                                        ? (
-                                                            <p key={index}>
-                                                                {paragraph}
-                                                            </p>
-                                                        )
-                                                        : null
-                                                )}
-                                        </div>
-                                    </>
-                                )}
-                            </article>
-                        ))}
-                    </div>
-                )}
-            </section>
-
+            <div className="workspace-section">
+                <p className="muted">Canon records authoritative continuity. Character, Place, and Scene edits do not silently change these facts.</p>
+                <WorldPanel title="Canon" singular="canon fact" fields={canonFields}
+                    createFields={canonFields.filter((field) => field.name !== "status")}
+                    records={canon.map((item) => ({ id: item.canon_entry_id, title: item.key,
+                        values: { type: item.type, key: item.key, value: item.value, status: item.status } }))}
+                    onSave={async (id, values) => {
+                        const input = { type: values.type, key: values.key, value: values.value };
+                        const item = id ? await updateCanon(storyId, id, { ...input, status: values.status === "superseded" ? "superseded" : "approved" })
+                            : await createCanonEntry(storyId, input.type, input.key, input.value);
+                        setCanon((current) => upsert(current, item, (entry) => entry.canon_entry_id));
+                    }} />
+            </div>
+            <ScenePanel storyId={storyId} scenes={scenes} onSaved={(scene) => {
+                setScenes((current) => upsert(current, scene, (entry) => entry.scene_id).sort((a, b) => a.sequence_number - b.sequence_number));
+            }} onGenerated={async () => setActions(await listActions(storyId))} />
+            <details className="panel actions-panel">
+                <summary>Authority log ({actions.length})</summary>
+                {actions.map((action) => <article className="action-entry" key={action.action_id}>
+                    <p><strong>{action.action_type}</strong> · {action.status} · {action.decision?.outcome ?? "Pending"}</p>
+                    <p>{action.request}</p><p className="muted">{action.decision?.reason}</p>
+                </article>)}
+            </details>
         </main>
     );
 }

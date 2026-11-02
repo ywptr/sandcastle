@@ -2,9 +2,11 @@ from datetime import datetime
 
 from pydantic import BaseModel
 
+from app.validation import InputModel, Name, PatchModel
 
-class StoryCreate(BaseModel):
-    title: str
+
+class StoryCreate(InputModel):
+    title: Name
     premise: str | None = None
     objective: str | None = None
 
@@ -22,3 +24,10 @@ class StoryResponse(BaseModel):
     model_config = {
         "from_attributes": True,
     }
+
+
+class StoryUpdate(PatchModel):
+    nullable_fields = {"premise", "objective"}
+    title: Name | None = None
+    premise: str | None = None
+    objective: str | None = None

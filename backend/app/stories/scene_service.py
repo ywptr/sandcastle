@@ -1,8 +1,10 @@
-from sqlalchemy import func
+from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.db.models.scene import Scene
 from app.db.models.story import Story
+from app.world.service import list_characters, list_places
 from app.stories.generator import (
     SceneGenerationContext,
     StoryGenerator,
@@ -48,23 +50,26 @@ def create_scene(
     db: Session,
     *,
     story_id: str,
-    source_action_id: str,
+    source_action_id: str | None = None,
+    title: str | None = None,
     content: str,
 ) -> Scene:
+    # Lock the parent row on PostgreSQL so sequence allocation is serialized.
+    db.execute(select(Story.story_id).where(Story.story_id == story_id).with_for_update())
     scene = Scene(
         story_id=story_id,
         source_action_id=source_action_id,
-        sequence_number=get_next_sequence_number(
-            db,
-            story_id,
-        ),
+        sequence_number=get_next_sequence_number(db, story_id),
+        title=title,
         content=content,
     )
-
     db.add(scene)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise
     db.refresh(scene)
-
     return scene
 
 
@@ -92,18 +97,31 @@ async def generate_scene(
                 "key": entry.key,
                 "value": entry.value,
             }
-            for entry in canon_entries
+            for entry in canon_entries if entry.status == "approved"
         ],
         previous_scenes=[
             scene.content
             for scene in existing_scenes
         ],
         request=request,
+        characters=[
+            {field: getattr(character, field) for field in
+             ("name", "description", "appearance", "outfit", "personality")}
+            for character in list_characters(db, story.story_id)
+        ],
+        places=[
+            {field: getattr(place, field) for field in
+             ("name", "description", "appearance", "atmosphere")}
+            for place in list_places(db, story.story_id)
+        ],
     )
 
     content = await generator.generate_scene(
         context
     )
+
+    if not content or not content.strip():
+        raise ValueError("Generator returned empty scene content")
 
     return create_scene(
         db,
@@ -127,17 +145,9 @@ def get_scene(
     )
 
 
-def update_scene(
-    db: Session,
-    scene: Scene,
-    *,
-    title: str | None,
-    content: str,
-) -> Scene:
-    scene.title = title
-    scene.content = content
-
+def update_scene(db: Session, scene: Scene, **changes) -> Scene:
+    for field, value in changes.items():
+        setattr(scene, field, value)
     db.commit()
     db.refresh(scene)
-
     return scene

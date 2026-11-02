@@ -54,3 +54,11 @@ def list_stories(
         )
         .all()
     )
+
+
+def update_story(db: Session, story: Story, **changes) -> Story:
+    for field, value in changes.items():
+        setattr(story, field, value)
+    db.commit()
+    db.refresh(story)
+    return story

@@ -1,3 +1,4 @@
+import json
 import os
 
 from openai import AsyncOpenAI
@@ -41,6 +42,12 @@ PREMISE
 
 OBJECTIVE
 {context.objective or "Not specified"}
+
+CHARACTERS
+{json.dumps(context.characters, ensure_ascii=False)}
+
+PLACES
+{json.dumps(context.places, ensure_ascii=False)}
 
 ESTABLISHED CANON
 {format_canon(context.canon)}

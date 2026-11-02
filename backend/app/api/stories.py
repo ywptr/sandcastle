@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 
 from app.api.dependencies import (
     get_current_identity,
@@ -10,20 +11,16 @@ from app.authority.adapters.local import LocalAuthorityEvaluator
 from app.canon.schemas import (
     CanonEntryCreate,
     CanonEntryResponse,
+    CanonEntryUpdate,
 )
 from app.canon.service import (
     create_canon_entry,
     list_canon_entries,
-)
-from app.canon.adapters.openai_extractor import (
-    OpenAICanonExtractor,
+    get_canon_entry,
+    update_canon_entry,
 )
 from app.canon.candidate_schemas import (
     CanonCandidateResponse,
-)
-from app.canon.candidate_service import (
-    extract_candidates,
-    list_candidates,
 )
 from app.db.models.story import Story
 from app.stories.action_queries import (
@@ -42,24 +39,26 @@ from app.stories.action_service import (
 from app.stories.schemas import (
     StoryCreate,
     StoryResponse,
+    StoryUpdate,
 )
 from app.stories.service import (
     create_story,
     get_story,
     list_stories,
+    update_story,
 )
 
-from app.stories.adapters.openai_generator import (
-    OpenAIStoryGenerator,
-)
+from app.stories.generation import get_story_generator
 
 from app.stories.scene_schemas import (
+    SceneCreate,
     SceneGenerateRequest,
     SceneGenerateResponse,
     SceneResponse,
     SceneUpdate,
 )
 from app.stories.scene_service import (
+    create_scene,
     generate_scene,
     get_scene,
     list_scenes,
@@ -73,7 +72,6 @@ router = APIRouter(
 
 authority_evaluator = LocalAuthorityEvaluator()
 
-story_generator = OpenAIStoryGenerator()
 
 @router.post(
     "/{story_id}/scenes/{scene_id}/canon/extract",
@@ -105,12 +103,10 @@ async def extract_scene_canon_endpoint(
             detail="Scene not found",
         )
 
-    return await extract_candidates(
-        db,
-        story=story,
-        scene=scene,
-        extractor=canon_extractor,
-    )
+    # The historical candidate revision is empty; defer this workflow explicitly.
+    raise HTTPException(503, "Canon extraction is not available in this milestone.")
+
+
 @router.get(
     "/{story_id}/canon/candidates",
     response_model=list[CanonCandidateResponse],
@@ -128,10 +124,8 @@ def list_canon_candidates_endpoint(
         identity,
     )
 
-    return list_candidates(
-        db,
-        story.story_id,
-    )
+    raise HTTPException(503, "Canon candidate review is not available in this milestone.")
+
 
 @router.patch(
     "/{story_id}/scenes/{scene_id}",
@@ -167,8 +161,7 @@ def update_scene_endpoint(
     return update_scene(
         db,
         scene,
-        title=request.title,
-        content=request.content,
+        **request.model_dump(exclude_unset=True),
     )
 
 @router.get(
@@ -211,6 +204,8 @@ async def generate_scene_endpoint(
         identity,
     )
 
+    story_generator = get_story_generator()
+
     action = create_story_action(
         db,
         story=story,
@@ -239,14 +234,27 @@ async def generate_scene_endpoint(
         story.story_id,
     )
 
-    scene = await generate_scene(
-        db,
-        story=story,
-        action_id=action.action_id,
-        request=request.request,
-        canon_entries=canon_entries,
-        generator=story_generator,
-    )
+    try:
+        scene = await generate_scene(
+            db,
+            story=story,
+            action_id=action.action_id,
+            request=request.request,
+            canon_entries=canon_entries,
+            generator=story_generator,
+        )
+    except IntegrityError:
+        db.rollback()
+        action.status = "failed"
+        db.commit()
+        raise HTTPException(409, "Scene changed concurrently. Please retry.")
+    except Exception:
+        db.rollback()
+        action.status = "failed"
+        db.commit()
+        raise HTTPException(502, "Scene generation failed. Your existing scenes are unchanged.")
+    action.status = "completed"
+    db.commit()
 
     return SceneGenerateResponse(
         action=action_to_response(
@@ -479,3 +487,57 @@ def list_story_actions_endpoint(
         )
         for action in actions
     ]
+
+
+@router.patch("/{story_id}", response_model=StoryResponse)
+def update_story_endpoint(
+    story_id: str,
+    request: StoryUpdate,
+    db: Session = Depends(get_db),
+    identity: AuthenticatedIdentity = Depends(get_current_identity),
+):
+    story = require_story(db, story_id, identity)
+    return update_story(db, story, **request.model_dump(exclude_unset=True))
+
+
+@router.patch("/{story_id}/canon/{entry_id}", response_model=CanonEntryResponse)
+def update_canon_entry_endpoint(
+    story_id: str,
+    entry_id: str,
+    request: CanonEntryUpdate,
+    db: Session = Depends(get_db),
+    identity: AuthenticatedIdentity = Depends(get_current_identity),
+):
+    require_story(db, story_id, identity)
+    entry = get_canon_entry(db, story_id, entry_id)
+    if entry is None:
+        raise HTTPException(404, "Canon entry not found")
+    return update_canon_entry(db, entry, **request.model_dump(exclude_unset=True))
+
+
+@router.post("/{story_id}/scenes", response_model=SceneResponse, status_code=201)
+def create_scene_endpoint(
+    story_id: str,
+    request: SceneCreate,
+    db: Session = Depends(get_db),
+    identity: AuthenticatedIdentity = Depends(get_current_identity),
+):
+    require_story(db, story_id, identity)
+    try:
+        return create_scene(db, story_id=story_id, **request.model_dump())
+    except IntegrityError:
+        raise HTTPException(409, "Scene changed concurrently. Please retry.")
+
+
+@router.get("/{story_id}/scenes/{scene_id}", response_model=SceneResponse)
+def get_scene_endpoint(
+    story_id: str,
+    scene_id: str,
+    db: Session = Depends(get_db),
+    identity: AuthenticatedIdentity = Depends(get_current_identity),
+):
+    require_story(db, story_id, identity)
+    scene = get_scene(db, story_id, scene_id)
+    if scene is None:
+        raise HTTPException(404, "Scene not found")
+    return scene
