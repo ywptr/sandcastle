@@ -111,3 +111,33 @@ async def generate_scene(
         source_action_id=action_id,
         content=content,
     )
+
+def get_scene(
+    db: Session,
+    story_id: str,
+    scene_id: str,
+) -> Scene | None:
+    return (
+        db.query(Scene)
+        .filter(
+            Scene.story_id == story_id,
+            Scene.scene_id == scene_id,
+        )
+        .first()
+    )
+
+
+def update_scene(
+    db: Session,
+    scene: Scene,
+    *,
+    title: str | None,
+    content: str,
+) -> Scene:
+    scene.title = title
+    scene.content = content
+
+    db.commit()
+    db.refresh(scene)
+
+    return scene

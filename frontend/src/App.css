@@ -311,3 +311,48 @@
 
     color: #78716c;
 }
+
+.scene-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+
+.scene-title-input,
+.scene-edit-input {
+    width: 100%;
+
+    border: 1px solid #d6d3d1;
+    border-radius: 8px;
+
+    padding: 0.7rem;
+
+    font: inherit;
+}
+
+
+.scene-edit-input {
+    min-height: 280px;
+
+    margin-top: 0.75rem;
+
+    resize: vertical;
+
+    font-family:
+        Georgia,
+        "Times New Roman",
+        serif;
+
+    line-height: 1.7;
+}
+
+
+.scene-edit-actions {
+    display: flex;
+    justify-content: flex-end;
+
+    gap: 0.5rem;
+
+    margin-top: 0.75rem;
+}

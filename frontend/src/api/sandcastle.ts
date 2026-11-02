@@ -92,6 +92,28 @@ export function generateScene(
     );
 }
 
+export function updateScene(
+    storyId: string,
+    sceneId: string,
+    title: string | null,
+    content: string,
+) {
+    return request<Scene>(
+        `/stories/${storyId}/scenes/${sceneId}`,
+        {
+            method: "PATCH",
+            headers: {
+                "Content-Type":
+                    "application/json",
+            },
+            body: JSON.stringify({
+                title,
+                content,
+            }),
+        },
+    );
+}
+
 const API_BASE_URL =
     import.meta.env.VITE_API_BASE_URL
     ?? "/api";

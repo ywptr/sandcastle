@@ -6,6 +6,7 @@ import {
     listActions,
     listCanon,
     listScenes,
+    updateScene,
     type CanonEntry,
     type Scene,
     type Story,
@@ -39,6 +40,14 @@ export function StoryWorkspace({
     const [error, setError] =
         useState<string | null>(null);
 
+    const [editingSceneId, setEditingSceneId] =
+        useState<string | null>(null);
+
+    const [editingTitle, setEditingTitle] =
+        useState("");
+
+    const [editingContent, setEditingContent] =
+        useState("");
 
     async function handleCreateCanon(
         type: string,
@@ -325,29 +334,84 @@ export function StoryWorkspace({
                                 key={scene.scene_id}
                                 className="scene"
                             >
-                                <div className="scene-heading">
-                                    Scene {
-                                        scene.sequence_number
-                                    }
-                                </div>
-
-                                <div className="scene-content">
-                                    {scene.content
-                                        .split("\n")
-                                        .map(
-                                            (
-                                                paragraph,
-                                                index,
-                                            ) =>
-                                                paragraph.trim()
-                                                ? (
-                                                    <p key={index}>
-                                                        {paragraph}
-                                                    </p>
+                                {editingSceneId === scene.scene_id ? (
+                                    <>
+                                        <input
+                                            className="scene-title-input"
+                                            placeholder="Scene title"
+                                            value={editingTitle}
+                                            onChange={(event) =>
+                                                setEditingTitle(
+                                                    event.target.value
                                                 )
-                                                : null
-                                        )}
-                                </div>
+                                            }
+                                        />
+
+                                        <textarea
+                                            className="scene-edit-input"
+                                            value={editingContent}
+                                            onChange={(event) =>
+                                                setEditingContent(
+                                                    event.target.value
+                                                )
+                                            }
+                                        />
+
+                                        <div className="scene-edit-actions">
+                                            <button
+                                                className="secondary-button"
+                                                onClick={cancelEditScene}
+                                            >
+                                                Cancel
+                                            </button>
+
+                                            <button
+                                                className="primary-button"
+                                                onClick={() =>
+                                                    saveScene(scene)
+                                                }
+                                            >
+                                                Save
+                                            </button>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <>
+                                        <div className="scene-heading">
+                                            <span>
+                                                {scene.title
+                                                    ?? `Scene ${scene.sequence_number}`}
+                                            </span>
+
+                                            <button
+                                                className="secondary-button"
+                                                onClick={() =>
+                                                    beginEditScene(scene)
+                                                }
+                                            >
+                                                Edit
+                                            </button>
+                                        </div>
+
+                                        <div className="scene-content">
+                                            {scene.content
+                                                .split("\n")
+                                                .map(
+                                                    (
+                                                        paragraph,
+                                                        index,
+                                                    ) =>
+                                                        paragraph.trim()
+                                                        ? (
+                                                            <p key={index}>
+                                                                {paragraph}
+                                                            </p>
+                                                        )
+                                                        : null
+                                                )}
+                                        </div>
+                                    </>
+                                )}
                             </article>
                         ))}
                     </div>
@@ -356,4 +420,49 @@ export function StoryWorkspace({
 
         </main>
     );
+}
+
+function beginEditScene(
+    scene: Scene,
+) {
+    setEditingSceneId(
+        scene.scene_id
+    );
+
+    setEditingTitle(
+        scene.title ?? ""
+    );
+
+    setEditingContent(
+        scene.content
+    );
+}
+
+
+function cancelEditScene() {
+    setEditingSceneId(null);
+    setEditingTitle("");
+    setEditingContent("");
+}
+
+
+async function saveScene(
+    scene: Scene,
+) {
+    const updated = await updateScene(
+        story.story_id,
+        scene.scene_id,
+        editingTitle.trim() || null,
+        editingContent.trim(),
+    );
+
+    setScenes((current) =>
+        current.map((item) =>
+            item.scene_id === updated.scene_id
+                ? updated
+                : item
+        )
+    );
+
+    cancelEditScene();
 }

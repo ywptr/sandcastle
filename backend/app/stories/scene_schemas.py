@@ -6,6 +6,9 @@ from app.stories.action_schemas import (
     StoryActionResponse,
 )
 
+class SceneUpdate(BaseModel):
+    title: str | None = None
+    content: str
 
 class SceneResponse(BaseModel):
     scene_id: str

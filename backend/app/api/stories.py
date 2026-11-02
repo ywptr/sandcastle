@@ -42,14 +42,18 @@ from app.stories.service import (
 from app.stories.adapters.openai_generator import (
     OpenAIStoryGenerator,
 )
+
 from app.stories.scene_schemas import (
     SceneGenerateRequest,
     SceneGenerateResponse,
     SceneResponse,
+    SceneUpdate,
 )
 from app.stories.scene_service import (
     generate_scene,
+    get_scene,
     list_scenes,
+    update_scene,
 )
 
 router = APIRouter(
@@ -60,6 +64,44 @@ router = APIRouter(
 authority_evaluator = LocalAuthorityEvaluator()
 
 story_generator = OpenAIStoryGenerator()
+
+@router.patch(
+    "/{story_id}/scenes/{scene_id}",
+    response_model=SceneResponse,
+)
+def update_scene_endpoint(
+    story_id: str,
+    scene_id: str,
+    request: SceneUpdate,
+    db: Session = Depends(get_db),
+    identity: AuthenticatedIdentity = Depends(
+        get_current_identity
+    ),
+):
+    story = require_story(
+        db,
+        story_id,
+        identity,
+    )
+
+    scene = get_scene(
+        db,
+        story.story_id,
+        scene_id,
+    )
+
+    if scene is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Scene not found",
+        )
+
+    return update_scene(
+        db,
+        scene,
+        title=request.title,
+        content=request.content,
+    )
 
 @router.get(
     "/{story_id}/scenes",
