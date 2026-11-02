@@ -15,6 +15,16 @@ from app.canon.service import (
     create_canon_entry,
     list_canon_entries,
 )
+from app.canon.adapters.openai_extractor import (
+    OpenAICanonExtractor,
+)
+from app.canon.candidate_schemas import (
+    CanonCandidateResponse,
+)
+from app.canon.candidate_service import (
+    extract_candidates,
+    list_candidates,
+)
 from app.db.models.story import Story
 from app.stories.action_queries import (
     get_latest_decision,
@@ -64,6 +74,64 @@ router = APIRouter(
 authority_evaluator = LocalAuthorityEvaluator()
 
 story_generator = OpenAIStoryGenerator()
+
+@router.post(
+    "/{story_id}/scenes/{scene_id}/canon/extract",
+    response_model=list[CanonCandidateResponse],
+)
+async def extract_scene_canon_endpoint(
+    story_id: str,
+    scene_id: str,
+    db: Session = Depends(get_db),
+    identity: AuthenticatedIdentity = Depends(
+        get_current_identity
+    ),
+):
+    story = require_story(
+        db,
+        story_id,
+        identity,
+    )
+
+    scene = get_scene(
+        db,
+        story.story_id,
+        scene_id,
+    )
+
+    if scene is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Scene not found",
+        )
+
+    return await extract_candidates(
+        db,
+        story=story,
+        scene=scene,
+        extractor=canon_extractor,
+    )
+@router.get(
+    "/{story_id}/canon/candidates",
+    response_model=list[CanonCandidateResponse],
+)
+def list_canon_candidates_endpoint(
+    story_id: str,
+    db: Session = Depends(get_db),
+    identity: AuthenticatedIdentity = Depends(
+        get_current_identity
+    ),
+):
+    story = require_story(
+        db,
+        story_id,
+        identity,
+    )
+
+    return list_candidates(
+        db,
+        story.story_id,
+    )
 
 @router.patch(
     "/{story_id}/scenes/{scene_id}",
