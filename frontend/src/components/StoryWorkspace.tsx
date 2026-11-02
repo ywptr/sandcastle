@@ -148,6 +148,51 @@ export function StoryWorkspace({
         }
     }
 
+    function beginEditScene(
+        scene: Scene,
+    ) {
+        setEditingSceneId(
+            scene.scene_id
+        );
+
+        setEditingTitle(
+            scene.title ?? ""
+        );
+
+        setEditingContent(
+            scene.content
+        );
+    }
+
+
+    function cancelEditScene() {
+        setEditingSceneId(null);
+        setEditingTitle("");
+        setEditingContent("");
+    }
+
+
+    async function saveScene(
+        scene: Scene,
+    ) {
+        const updated = await updateScene(
+            story.story_id,
+            scene.scene_id,
+            editingTitle.trim() || null,
+            editingContent.trim(),
+        );
+
+        setScenes((current) =>
+            current.map((item) =>
+                item.scene_id === updated.scene_id
+                    ? updated
+                    : item
+            )
+        );
+
+        cancelEditScene();
+    }
+
 
     useEffect(() => {
         loadWorkspace();
@@ -420,49 +465,4 @@ export function StoryWorkspace({
 
         </main>
     );
-}
-
-function beginEditScene(
-    scene: Scene,
-) {
-    setEditingSceneId(
-        scene.scene_id
-    );
-
-    setEditingTitle(
-        scene.title ?? ""
-    );
-
-    setEditingContent(
-        scene.content
-    );
-}
-
-
-function cancelEditScene() {
-    setEditingSceneId(null);
-    setEditingTitle("");
-    setEditingContent("");
-}
-
-
-async function saveScene(
-    scene: Scene,
-) {
-    const updated = await updateScene(
-        story.story_id,
-        scene.scene_id,
-        editingTitle.trim() || null,
-        editingContent.trim(),
-    );
-
-    setScenes((current) =>
-        current.map((item) =>
-            item.scene_id === updated.scene_id
-                ? updated
-                : item
-        )
-    );
-
-    cancelEditScene();
 }
