@@ -39,6 +39,8 @@ def _build_instruction(
     characters: list[Character],
     places: list[Place],
     canon: list[CanonEntry],
+    *,
+    visual_moment: str | None = None,
 ) -> str:
     lines = [
         "Create a single image depicting the following narrative moment.",
@@ -49,7 +51,8 @@ def _build_instruction(
         lines.append(f"Premise: {story.premise}")
     if story.objective:
         lines.append(f"Narrative objective: {story.objective}")
-    lines.extend([f"Moment: {scene.title or f'Scene {scene.sequence_number}'}", scene.content])
+    lines.extend([f"Moment: {scene.title or f'Scene {scene.sequence_number}'}",
+                  scene.content if visual_moment is None else visual_moment])
     if characters:
         lines.append("Visual subjects:")
         for character in characters:
@@ -76,9 +79,12 @@ def _build_instruction(
     return "\n".join(lines)
 
 
-def _scene_image_request(
+def _scene_image_requests(
     db: Session, story: Story, scene_id: str, options: SceneImageOptions,
-) -> MediaRequest:
+    *,
+    visual_moments: list[str] | None = None,
+    purpose: MediaPurpose = MediaPurpose.SCENE,
+) -> list[MediaRequest]:
     scene = get_scene(db, story.story_id, scene_id)
     if scene is None:
         raise MediaDomainNotFound("Scene not found in story")
@@ -113,10 +119,10 @@ def _scene_image_request(
     artifact_keys = sorted({(ref.kind, ref.reference_id) for ref in options.artifact_references})
     references.extend(Reference(kind=kind, reference_id=ref_id) for kind, ref_id in artifact_keys)
 
-    return MediaRequest(
+    return [MediaRequest(
         media_type=MediaType.IMAGE,
-        purpose=MediaPurpose.SCENE,
-        prompt=_build_instruction(story, scene, characters, places, canon),
+        purpose=purpose,
+        prompt=_build_instruction(story, scene, characters, places, canon, visual_moment=moment),
         story_id=story.story_id,
         scene_id=scene.scene_id,
         references=references,
@@ -125,7 +131,13 @@ def _scene_image_request(
             scene_sequence_number=scene.sequence_number,
             canon_entry_ids=[entry.canon_entry_id for entry in canon],
         ),
-    )
+    ) for moment in (visual_moments if visual_moments is not None else [scene.content])]
+
+
+def _scene_image_request(
+    db: Session, story: Story, scene_id: str, options: SceneImageOptions,
+) -> MediaRequest:
+    return _scene_image_requests(db, story, scene_id, options)[0]
 
 
 def create_scene_image_request(

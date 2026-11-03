@@ -3,7 +3,7 @@ from enum import StrEnum
 from typing import Annotated, Literal
 from uuid import uuid4
 
-from pydantic import Field, StringConstraints, field_validator
+from pydantic import Field, StringConstraints, field_validator, model_validator
 
 from app.db.types import utc_now
 from app.validation import InputModel, Name, NonBlank
@@ -73,6 +73,9 @@ class MediaContext(InputModel):
 
     scene_sequence_number: int | None = None
     canon_entry_ids: list[str] = Field(default_factory=list)
+    panel_number: int | None = Field(default=None, ge=1)
+    panel_count: int | None = Field(default=None, ge=1)
+    panel_role: NonBlank | None = None
 
 
 class MediaRequest(InputModel):
@@ -93,3 +96,28 @@ class MediaPlan(InputModel):
     story_id: Name
     requests: list[MediaRequest] = Field(min_length=1)
     created_at: datetime = Field(default_factory=utc_now)
+
+
+class StoryboardPlan(MediaPlan):
+    """A four-panel specialization of the existing media intent, not execution steps."""
+
+    scene_id: Name
+    requests: list[MediaRequest] = Field(min_length=4, max_length=4)
+
+    def to_media_plan(self) -> MediaPlan:
+        """Project to the M3 envelope without changing request identities or order."""
+        return MediaPlan(
+            media_plan_id=self.media_plan_id, story_id=self.story_id,
+            requests=self.requests, created_at=self.created_at,
+        )
+
+    @model_validator(mode="after")
+    def validate_panels(self) -> "StoryboardPlan":
+        for number, request in enumerate(self.requests, start=1):
+            if request.story_id != self.story_id or request.scene_id != self.scene_id:
+                raise ValueError("All panels must belong to the storyboard Story and Scene")
+            if request.media_type != MediaType.IMAGE or request.purpose != MediaPurpose.COMIC_PANEL:
+                raise ValueError("All panels must be image requests with comic_panel purpose")
+            if request.context.panel_number != number or request.context.panel_count != 4:
+                raise ValueError("Panels must be ordered 1, 2, 3, 4 with panel_count 4")
+        return self
