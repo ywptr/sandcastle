@@ -74,3 +74,12 @@ database; run it only against your intended development database.
 The historical owner migration requires existing Stories to have valid owners
 before making `user_id` non-null. It does not backfill legacy data. No migrations
 are automatically applied during application startup.
+
+## Media Orchestrator (M3)
+
+The [Media Orchestrator](app/media/README.md) translates saved story-domain context
+into provider-neutral `MediaRequest` and `MediaPlan` DTOs. Authenticated Scene-image
+request and multi-Scene plan endpoints perform no generation or persistence.
+Sandcastle owns semantics; a future IG/control-plane API client will own the
+execution boundary. See the linked documentation for selection, reference, and
+API contracts.
