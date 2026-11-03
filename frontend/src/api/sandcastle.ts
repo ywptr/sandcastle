@@ -1,3 +1,5 @@
+import { resolveApiBase } from "./baseUrl";
+
 export interface Story {
     story_id: string;
     user_id: string;
@@ -115,9 +117,10 @@ export function updateScene(
     );
 }
 
-const API_BASE_URL =
-    import.meta.env.VITE_API_BASE_URL
-    ?? "/api";
+const API_BASE_URL = resolveApiBase(
+    import.meta.env.DEV,
+    import.meta.env.VITE_API_BASE_URL,
+);
 
 export class ApiError extends Error {
     status: number;
@@ -261,10 +264,13 @@ export interface AuthUser {
     name: string | null;
 }
 
-export function getCurrentUser() {
-    return request<AuthUser>(
-        "/auth/me"
-    );
+export async function getCurrentUser(): Promise<AuthUser | null> {
+    try {
+        return await request<AuthUser>("/auth/me");
+    } catch (error) {
+        if (error instanceof ApiError && error.status === 401) return null;
+        throw error;
+    }
 }
 
 export async function logout() {

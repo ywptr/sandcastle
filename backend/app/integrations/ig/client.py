@@ -48,7 +48,7 @@ class IGMediaExecutionClient:
             raise ExecutionRejected("Only image execution is supported")
         if request.aspect_ratio not in {None, "2:3", "4:5", "1:1", "16:9"}:
             raise ExecutionRejected("IG does not support this aspect ratio")
-        if any(ref.kind in {"generated_artifact", "uploaded_artifact"} for ref in request.references):
+        if any(ref.kind in {"artifact", "generated_artifact", "uploaded_artifact"} for ref in request.references):
             raise ExecutionRejected("Visual artifact references require a verified IG artifact resolver; opaque IDs cannot be assumed to be IG artifact IDs")
         payload = self._http("POST", "/v2/media/generations", json={
             "media_type": "image", "interface_level": "easy", "strategy": "single",

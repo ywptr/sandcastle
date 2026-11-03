@@ -10,7 +10,12 @@ from app.db.models.place import Place
 from app.db.models.media_execution import MediaExecution
 from app.db.models.artifact import Artifact
 
+from app.db.models.reference_binding import ReferenceBinding
+from app.db.models.artifact_relation import ArtifactRelation
+
 __all__ = [
+    "ReferenceBinding",
+    "ArtifactRelation",
     "MediaExecution",
     "Artifact",
     "Story",

@@ -174,3 +174,13 @@ Migration tests use temporary SQLite databases for upgrade/downgrade/model check
 and compile the entire migration history as PostgreSQL SQL. No configured live
 database is migrated. Live IG testing is intentionally unavailable until the auth
 and submission dependencies are resolved; normal tests use fakes and mock HTTP.
+
+## M6 compatibility
+
+[Artifact references and lineage](../artifacts/README.md) extend Artifact metadata
+with uploaded/external origins and optional provenance links. Generated outputs
+still originate only from execution completion. New local Artifact references
+are owner-checked during approval and remain in immutable request snapshots.
+Story-scoped Artifact listing now includes contextual bindings as well as origin.
+The IG adapter rejects these unresolved local inputs rather than dropping them.
+Refinement preview is not an M4B execution path; no IG blocker is changed here.

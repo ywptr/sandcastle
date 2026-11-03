@@ -2,11 +2,13 @@
 from sqlalchemy.orm import Session
 
 from app.canon.service import list_canon_entries
+from app.artifacts.resolver import explicit_artifact_references, resolve_applicable_references
 from app.db.models.canon_entry import CanonEntry
 from app.db.models.character import Character
 from app.db.models.place import Place
 from app.db.models.scene import Scene
 from app.db.models.story import Story
+from app.media.errors import InvalidMediaIntent, MediaDomainNotFound
 from app.media.schemas import (
     MediaContext, MediaPlan, MediaPurpose, MediaRequest, MediaType,
     Reference, SceneImageOptions, SceneImagePlanInput,
@@ -14,14 +16,6 @@ from app.media.schemas import (
 from app.stories.scene_service import get_scene
 from app.stories.service import get_story
 from app.world.service import list_characters, list_places
-
-
-class MediaDomainNotFound(ValueError):
-    pass
-
-
-class InvalidMediaIntent(ValueError):
-    pass
 
 
 def _require_story(db: Session, story_id: str, user_id: str) -> Story:
@@ -35,7 +29,7 @@ def _require_story(db: Session, story_id: str, user_id: str) -> Story:
 
 def _build_instruction(
     story: Story,
-    scene: Scene,
+    scene: Scene | None,
     characters: list[Character],
     places: list[Place],
     canon: list[CanonEntry],
@@ -51,8 +45,11 @@ def _build_instruction(
         lines.append(f"Premise: {story.premise}")
     if story.objective:
         lines.append(f"Narrative objective: {story.objective}")
-    lines.extend([f"Moment: {scene.title or f'Scene {scene.sequence_number}'}",
-                  scene.content if visual_moment is None else visual_moment])
+    if scene is not None:
+        lines.extend([f"Moment: {scene.title or f'Scene {scene.sequence_number}'}",
+                      scene.content if visual_moment is None else visual_moment])
+    elif visual_moment is not None:
+        lines.append(visual_moment)
     if characters:
         lines.append("Visual subjects:")
         for character in characters:
@@ -79,18 +76,9 @@ def _build_instruction(
     return "\n".join(lines)
 
 
-def _scene_image_requests(
-    db: Session, story: Story, scene_id: str, options: SceneImageOptions,
-    *,
-    visual_moments: list[str] | None = None,
-    purpose: MediaPurpose = MediaPurpose.SCENE,
-) -> list[MediaRequest]:
-    scene = get_scene(db, story.story_id, scene_id)
-    if scene is None:
-        raise MediaDomainNotFound("Scene not found in story")
-    if not scene.content.strip():
-        raise InvalidMediaIntent("Scene content cannot be blank")
-
+def _select_visual_context(
+    db: Session, story: Story, options: SceneImageOptions,
+) -> tuple[list[Character], list[Place], list[CanonEntry], list[Reference]]:
     characters = list_characters(db, story.story_id)
     places = list_places(db, story.story_id)
     if options.character_ids is not None:
@@ -118,6 +106,29 @@ def _scene_image_requests(
     references.extend(Reference(kind="place", reference_id=place.place_id) for place in places)
     artifact_keys = sorted({(ref.kind, ref.reference_id) for ref in options.artifact_references})
     references.extend(Reference(kind=kind, reference_id=ref_id) for kind, ref_id in artifact_keys)
+
+    references.extend(resolve_applicable_references(
+        db, story_id=story.story_id, user_id=story.user_id,
+        character_ids=[character.character_id for character in characters],
+        place_ids=[place.place_id for place in places],
+    ))
+    references.extend(explicit_artifact_references(db, story.user_id, options.artifact_ids))
+    return characters, places, canon, references
+
+
+def _scene_image_requests(
+    db: Session, story: Story, scene_id: str, options: SceneImageOptions,
+    *,
+    visual_moments: list[str] | None = None,
+    purpose: MediaPurpose = MediaPurpose.SCENE,
+) -> list[MediaRequest]:
+    scene = get_scene(db, story.story_id, scene_id)
+    if scene is None:
+        raise MediaDomainNotFound("Scene not found in story")
+    if not scene.content.strip():
+        raise InvalidMediaIntent("Scene content cannot be blank")
+
+    characters, places, canon, references = _select_visual_context(db, story, options)
 
     return [MediaRequest(
         media_type=MediaType.IMAGE,

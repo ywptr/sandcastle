@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ApiError, getCurrentUser, listStories, loginUrl, logout, type AuthUser, type Story } from "./api/sandcastle";
+import { getCurrentUser, listStories, loginUrl, logout, type AuthUser, type Story } from "./api/sandcastle";
 import { StorySelector } from "./components/StorySelector";
 import { StoryWorkspace } from "./components/StoryWorkspace";
 
@@ -16,13 +16,14 @@ function App() {
         async function load() {
             try {
                 const identity = await getCurrentUser();
+                if (!active || identity === null) return;
                 const result = await listStories();
                 if (!active) return;
                 setUser(identity);
                 setStories(result);
                 setSelectedStoryId(result[0]?.story_id ?? null);
             } catch (failure) {
-                if (active && !(failure instanceof ApiError && failure.status === 401)) {
+                if (active) {
                     setError(failure instanceof Error ? failure.message : "Could not load Sandcastle.");
                 }
             } finally {

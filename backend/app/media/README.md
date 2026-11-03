@@ -184,3 +184,16 @@ approval of a returned plan, persists exact panel request snapshots, and uses an
 injected execution client to submit/synchronize results. The IG adapter currently
 fails closed for live HTTP because safe service-caller authentication is absent.
 Execution/Artifact metadata is durable; media bytes are not stored in PostgreSQL.
+
+## Durable references and refinement previews (M6)
+
+The [M6 contract](../artifacts/README.md) adds contextual reference bindings and
+metadata-only Artifact registration. The resolver includes Story style/general
+bindings and selected Character/Place bindings in existing Scene and storyboard
+requests. Local Artifact references carry stable IDs, binding IDs, and roles;
+physical locators stay on Artifact records.
+
+`POST /api/artifacts/{artifact_id}/refinement` returns an `image_refinement`
+MediaRequest with explicit source provenance and optional Story/Scene context.
+It performs no generation or persistence. Artifacts and bindings do not mutate
+Canon; IG execution/authentication and video remain out of scope.

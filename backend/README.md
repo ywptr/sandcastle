@@ -14,8 +14,10 @@ Set `DATABASE_URL` to a PostgreSQL URL and configure the IS variables listed in
 `app/auth/config.py`. Keep credentials in an ignored `.env` file. IS owns user
 identity; Sandcastle stores its subject as each Story's owner. Use the same
 browser host for the GUI `/api` rewrite and authentication callback in production.
-For local Vite development, set `VITE_API_BASE_URL=http://localhost:8000/api` in
-`frontend/.env.local` (Vite does not proxy `/api` by default).
+For local HTTPS development, use the Vite `/api` proxy rather than an absolute
+HTTP API origin. See [the local HTTPS setup](../frontend/README.md#local-https-development)
+for the callback, return URL, and Secure-cookie settings. FastAPI remains HTTP
+on port 8000; IS configuration is managed separately.
 
 ## Structured authoring
 
@@ -113,3 +115,17 @@ submission also has a missing database-session argument. The adapter is tested
 offline and does not forward passwords/cookies or invent a token mechanism.
 See the linked document for exact external dependencies and API/error behavior.
 M5 remains blocked on IG video capability.
+
+## Artifact references and refinement previews (M6)
+
+[Artifacts, bindings, and lineage](app/artifacts/README.md) add metadata registration
+for uploaded/external images, reusable Story/Character/Place/style bindings,
+multi-parent provenance, and provider-neutral `image_refinement` previews.
+Applicable bindings now enter M3 Scene requests and M4A four-panel plans using
+stable local Artifact IDs, with no storage locators in those requests.
+
+Apply migration `a42d7e90c681` to a development database before using these APIs.
+Generated artifacts and existing execution snapshots are preserved. No bytes are
+uploaded or stored in PostgreSQL; references never become Canon automatically.
+There is no live refinement, storage integration, or IG authentication change.
+M5 video and M7 Canon intelligence remain deferred.

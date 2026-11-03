@@ -1,11 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_current_identity, get_db
 from app.auth.identity import AuthenticatedIdentity
-from app.db.models.artifact import Artifact
-from app.db.models.story import Story
+from app.artifacts.service import get_artifact
 from app.integrations.ig.client import get_execution_client
 from app.media.execution_client import MediaExecutionClient
 from app.media.execution_schemas import ApprovedStoryboard, ArtifactResponse, MediaExecutionResponse
@@ -99,10 +97,7 @@ def read_artifact_endpoint(
     db: Session = Depends(get_db),
     identity: AuthenticatedIdentity = Depends(get_current_identity),
 ):
-    artifact = db.scalar(select(Artifact).join(Story, Story.story_id == Artifact.story_id).where(
-        Artifact.artifact_id == artifact_id, Artifact.user_id == identity.user_id,
-        Story.user_id == identity.user_id,
-    ))
-    if artifact is None:
-        raise HTTPException(404, "Artifact not found")
-    return artifact
+    try:
+        return get_artifact(db, artifact_id, identity.user_id)
+    except MediaDomainNotFound as error:
+        raise HTTPException(404, str(error)) from error

@@ -7,7 +7,9 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.models.artifact import Artifact
+from app.artifacts.service import get_artifact, list_artifacts as list_owned_artifacts
 from app.db.models.media_execution import MediaExecution
+from app.db.models.reference_binding import ReferenceBinding
 from app.db.models.story import Story
 from app.db.types import utc_now
 from app.media.execution_client import ExecutionClientError, MediaExecutionClient
@@ -68,7 +70,18 @@ def execute_storyboard(
 
     for request in plan.requests:
         for reference in request.references:
-            if reference.kind in {"character", "outfit"}:
+            if reference.kind == "artifact":
+                get_artifact(db, reference.reference_id, user_id)
+                if reference.binding_id is not None:
+                    binding = db.scalar(select(ReferenceBinding).where(
+                        ReferenceBinding.reference_id == reference.binding_id,
+                        ReferenceBinding.user_id == user_id, ReferenceBinding.story_id == story_id,
+                        ReferenceBinding.artifact_id == reference.reference_id,
+                        ReferenceBinding.role == reference.role,
+                    ))
+                    if binding is None:
+                        raise MediaDomainNotFound("Reference binding not found in story")
+            elif reference.kind in {"character", "outfit"}:
                 if get_character(db, story_id, reference.reference_id) is None:
                     raise MediaDomainNotFound("Character reference not found in story")
             elif reference.kind == "place" and get_place(db, story_id, reference.reference_id) is None:
@@ -125,10 +138,7 @@ def list_executions(db: Session, story_id: str, user_id: str) -> list[MediaExecu
 
 
 def list_artifacts(db: Session, story_id: str, user_id: str) -> list[Artifact]:
-    _require_story(db, story_id, user_id)
-    return list(db.scalars(select(Artifact).where(
-        Artifact.story_id == story_id, Artifact.user_id == user_id,
-    ).order_by(Artifact.created_at, Artifact.artifact_id)))
+    return list_owned_artifacts(db, user_id, story_id=story_id)
 
 
 def sync_execution(

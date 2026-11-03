@@ -64,7 +64,8 @@ class IGClientTests(unittest.TestCase):
     def test_rejects_unsupported_media_framing_and_unresolved_artifacts(self):
         client = IGMediaExecutionClient("https://ig.example.test", transport=httpx.MockTransport(lambda request: self.fail("No HTTP expected")))
         for change in [{"media_type": MediaType.VIDEO}, {"aspect_ratio": "9:16"},
-                       {"references": [Reference(kind="uploaded_artifact", reference_id="opaque")]}]:
+                       {"references": [Reference(kind="uploaded_artifact", reference_id="opaque")]},
+                       {"references": [Reference(kind="artifact", reference_id="local-artifact")]}]:
             with self.subTest(change=change), self.assertRaises(ExecutionRejected):
                 client.submit(self.request().model_copy(update=change), actor_id="alice", correlation_id="exec")
 

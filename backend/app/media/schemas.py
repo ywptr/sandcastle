@@ -26,6 +26,7 @@ class MediaPurpose(StrEnum):
     COMIC_PANEL = "comic_panel"
     COVER = "cover"
     VIDEO_SCENE = "video_scene"
+    IMAGE_REFINEMENT = "image_refinement"
 
 
 class ArtifactReference(InputModel):
@@ -38,8 +39,10 @@ class ArtifactReference(InputModel):
 class Reference(InputModel):
     """A future resolver can map (kind, reference_id) to visual input."""
 
-    kind: Literal["character", "outfit", "place", "generated_artifact", "uploaded_artifact"]
+    kind: Literal["character", "outfit", "place", "artifact", "generated_artifact", "uploaded_artifact"]
     reference_id: Name
+    binding_id: Name | None = None
+    role: Literal["character_identity", "outfit", "place", "visual_style", "general", "source"] | None = None
 
 
 class SceneImageOptions(InputModel):
@@ -47,9 +50,10 @@ class SceneImageOptions(InputModel):
     character_ids: list[Name] | None = None
     place_ids: list[Name] | None = None
     artifact_references: list[ArtifactReference] = Field(default_factory=list)
+    artifact_ids: list[Name] = Field(default_factory=list)
     aspect_ratio: AspectRatio | None = None
 
-    @field_validator("character_ids", "place_ids")
+    @field_validator("character_ids", "place_ids", "artifact_ids")
     @classmethod
     def unique_ids(cls, value: list[str] | None) -> list[str] | None:
         if value is not None and len(value) != len(set(value)):
@@ -76,6 +80,7 @@ class MediaContext(InputModel):
     panel_number: int | None = Field(default=None, ge=1)
     panel_count: int | None = Field(default=None, ge=1)
     panel_role: NonBlank | None = None
+    source_artifact_id: Name | None = None
 
 
 class MediaRequest(InputModel):
@@ -83,7 +88,7 @@ class MediaRequest(InputModel):
     media_type: MediaType
     purpose: MediaPurpose
     prompt: NonBlank
-    story_id: Name
+    story_id: Name | None = None
     scene_id: Name | None = None
     references: list[Reference] = Field(default_factory=list)
     aspect_ratio: AspectRatio | None = None
@@ -121,3 +126,9 @@ class StoryboardPlan(MediaPlan):
             if request.context.panel_number != number or request.context.panel_count != 4:
                 raise ValueError("Panels must be ordered 1, 2, 3, 4 with panel_count 4")
         return self
+
+
+class RefinementInput(SceneImageOptions):
+    instruction: NonBlank
+    story_id: Name | None = None
+    scene_id: Name | None = None

@@ -42,12 +42,13 @@ class MediaExecutionResponse(BaseModel):
 class ArtifactResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
     artifact_id: str
-    story_id: str
-    scene_id: str
-    execution_id: str
+    story_id: str | None
+    scene_id: str | None
+    execution_id: str | None
     media_type: str
     source: str
-    external_reference: str
+    external_reference: str | None
+    display_name: str | None
     external_artifact_id: str | None
     retrieval_reference: str
     mime_type: str | None
