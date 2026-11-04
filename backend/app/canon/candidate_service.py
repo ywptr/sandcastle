@@ -99,6 +99,7 @@ def _relevant(db: Session, candidate: CanonCandidate):
 
 def _snapshot(entries):
     return [{"canon_entry_id": entry.canon_entry_id, "type": entry.type, "subject_id": entry.subject_id,
+             "canon_version_id": getattr(entry, "canon_version_id", None),
              "fact_type": entry.fact_type, "key": entry.key, "value": entry.value, "status": entry.status}
             for entry in entries]
 
@@ -250,16 +251,23 @@ def approve_candidate(db: Session, *, story_id: str, candidate_id: str, user_id:
             raise CandidateConflict("Uncertain proposals require explicit accept_uncertain consent")
         if relevant and candidate.classification != "consistent" and not approval.replace_conflicts:
             raise CandidateConflict("Replacing current Canon requires explicit replace_conflicts consent")
-        if candidate.classification == "consistent":
-            entry = relevant[0]
+        from app.canon.library_service import editable_reference, record_edit
+        ref = None
+        if candidate.classification != "consistent":
+            ref = editable_reference(db, story_id, candidate.type, candidate.subject_id)
+        if candidate.classification == "consistent" and relevant and db.get(CanonEntry, relevant[0].canon_entry_id) is not None:
+            entry = db.get(CanonEntry, relevant[0].canon_entry_id)
         else:
             candidate.superseded_entry_ids = [entry.canon_entry_id for entry in relevant]
             for old in relevant:
-                old.status = "superseded"
+                historical = db.get(CanonEntry, old.canon_entry_id)
+                if historical is not None and historical.story_id == story_id:
+                    historical.status = "superseded"
             entry = CanonEntry(story_id=story_id, type=candidate.type, subject_id=candidate.subject_id,
                                fact_type=candidate.fact_type, key=candidate.key, value=candidate.value, status="approved")
             db.add(entry)
             db.flush()
+            record_edit(db, ref, fact={"key": candidate.key, "value": candidate.value, "fact_type": candidate.fact_type, "source_entry_id": entry.canon_entry_id})
         candidate.approved_canon_entry_id = entry.canon_entry_id
         candidate.status = "approved"
         candidate.reviewed_at = utc_now()

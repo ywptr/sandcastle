@@ -17,6 +17,9 @@ def create_canon_entry(
     fact_type: str | None = None,
 ) -> CanonEntry:
     _lock_and_validate(db, story_id, entry_type, subject_id)
+    from app.canon.library_service import editable_reference, record_edit
+    ref = editable_reference(db, story_id, entry_type, subject_id)
+    record_edit(db, ref, fact={"key": key, "value": value, "fact_type": fact_type})
     entry = CanonEntry(
         story_id=story_id,
         type=entry_type,
@@ -45,9 +48,8 @@ def list_canon_entries(
         .order_by(CanonEntry.created_at)
     )
 
-    return list(
-        db.scalars(statement).all()
-    )
+    from app.canon.library_service import effective_entries
+    return effective_entries(db, story_id, list(db.scalars(statement).all()))
 
 def get_canon_entry(db: Session, story_id: str, entry_id: str) -> CanonEntry | None:
     return db.scalar(select(CanonEntry).where(
@@ -57,6 +59,10 @@ def get_canon_entry(db: Session, story_id: str, entry_id: str) -> CanonEntry | N
 
 def update_canon_entry(db: Session, entry: CanonEntry, **changes) -> CanonEntry:
     _lock_and_validate(db, entry.story_id, changes.get("type", entry.type), changes.get("subject_id", entry.subject_id))
+    from app.canon.library_service import editable_reference
+    if editable_reference(db, entry.story_id, entry.type, entry.subject_id):
+        from fastapi import HTTPException
+        raise HTTPException(409, "Use candidate approval to revise versioned Canon facts")
     for field, value in changes.items():
         setattr(entry, field, value)
     db.commit()

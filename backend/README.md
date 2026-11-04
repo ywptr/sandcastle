@@ -146,3 +146,10 @@ metadata to existing Canon entries. API operations include extraction, manual
 proposals, filtered listing, reclassification, review, and lightweight continuity
 counts/issues. Apply the migration to the intended development database before
 using these APIs. M8 branching and M4B/M5 live media integrations remain deferred.
+
+### M8 — reusable Canon Library
+
+Characters and Places can be explicitly promoted, shared through pinned versions,
+and forked before Story-specific changes. Existing Story subject IDs remain valid.
+See [Canon Library](app/canon/LIBRARY.md) for APIs, M7/M6 integration and migration
+`c81f24a709de`. No automatic version following, Universe scope, or provider calls.

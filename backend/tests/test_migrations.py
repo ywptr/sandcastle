@@ -26,7 +26,7 @@ def config(output=None):
 
 def create_historical_baseline(engine, tables):
     # Current metadata includes M7 columns; older baselines must not pre-create them.
-    Base.metadata.create_all(engine, tables=[table for table in tables if table.name != "canon_candidates"])
+    Base.metadata.create_all(engine, tables=[table for table in tables if table.name not in {"canon_candidates", "canon_objects", "canon_object_versions", "story_canon_references"}])
     with engine.begin() as connection:
         columns = {column["name"] for column in inspect(connection).get_columns("canon_entries")}
         for name in ("subject_id", "fact_type"):
@@ -47,6 +47,9 @@ class MigrationTests(unittest.TestCase):
         self.assertIn("CREATE TABLE reference_bindings", sql)
         self.assertIn("CREATE TABLE artifact_relations", sql)
         self.assertIn("CREATE TABLE canon_candidates", sql)
+        self.assertIn("CREATE TABLE canon_objects", sql)
+        self.assertIn("CREATE TABLE canon_object_versions", sql)
+        self.assertIn("CREATE TABLE story_canon_references", sql)
         self.assertIn("b7e193d2c540", sql)
         self.assertIn("a42d7e90c681", sql)
         self.assertIn("8f31c2d9a670", sql)
@@ -202,6 +205,57 @@ class MigrationTests(unittest.TestCase):
                     self.assertEqual(connection.scalar(select(CanonEntry.value).where(CanonEntry.canon_entry_id == "legacy")), "Normal gravity")
                 command.upgrade(config(), "head")
                 command.check(config())
+            engine.dispose()
+
+    def test_library_migration_preserves_legacy_subjects_candidates_and_visuals(self):
+        from sqlalchemy.orm import Session
+        from app.db.models import Character, Place, CanonCandidate, ReferenceBinding
+        from app.canon.candidate_schemas import ManualCandidate
+        from app.canon.candidate_service import propose_candidate
+        from app.canon.library_service import promote
+        from app.artifacts.service import register_artifact, create_binding
+        from app.artifacts.schemas import ArtifactRegistration, ReferenceBindingCreate
+        with tempfile.TemporaryDirectory(prefix="sandcastle-library-migration-") as directory:
+            url = "sqlite:///" + str(Path(directory) / "migration.db")
+            engine = create_engine(url)
+            create_historical_baseline(engine, Base.metadata.sorted_tables)
+            with patch.dict(os.environ, {"DATABASE_URL": url}):
+                command.stamp(config(), "a42d7e90c681")
+                command.upgrade(config(), "b7e193d2c540")
+                with Session(engine) as db:
+                    db.add(Story(story_id="s", user_id="alice", title="Legacy"))
+                    db.flush()
+                    db.add(Character(character_id="c", story_id="s", name="Mara"))
+                    db.add(Place(place_id="p", story_id="s", name="Harbor"))
+                    db.commit()
+                    candidate = CanonCandidate(user_id="alice", story_id="s", type="character", subject_id="c",
+                        fact_type="age", key="age", value="35", evidence="Author", source_kind="manual",
+                        source_snapshot="Author", source_hash="a" * 64, dedup_key="b" * 64,
+                        extraction_data={"type": "character", "subject_id": "c", "key": "age", "value": "35", "evidence": "Author"},
+                        reasoning="Legacy pending fact")
+                    db.add(candidate)
+                    db.commit()
+                    candidate_id = candidate.canon_candidate_id
+                    artifact = register_artifact(db, "alice", ArtifactRegistration(source="external", retrieval_reference="https://example.test/image"))
+                    binding = create_binding(db, "s", "alice", ReferenceBindingCreate(
+                        artifact_id=artifact.artifact_id, target_type="character", target_id="c", role="character_identity"))
+                    binding_id = binding.reference_id
+                command.upgrade(config(), "head")
+                command.check(config())
+                with Session(engine) as db:
+                    self.assertEqual(db.get(Character, "c").name, "Mara")
+                    self.assertEqual(db.get(Place, "p").name, "Harbor")
+                    self.assertEqual(db.get(CanonCandidate, candidate_id).subject_id, "c")
+                    self.assertEqual(db.get(ReferenceBinding, binding_id).target_id, "c")
+                command.downgrade(config(), "b7e193d2c540")
+                command.upgrade(config(), "head")
+                command.check(config())
+                with Session(engine) as db:
+                    ref = promote(db, "s", "alice", "character", "c")
+                    self.assertEqual(ref.target_id, "c")
+                    self.assertEqual(db.get(CanonCandidate, candidate_id).status, "pending")
+                with self.assertRaisesRegex(RuntimeError, "Export"):
+                    command.downgrade(config(), "b7e193d2c540")
             engine.dispose()
 
 

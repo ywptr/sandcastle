@@ -16,6 +16,9 @@ from app.db.models.artifact_relation import ArtifactRelation
 from app.db.models.canon_candidate import CanonCandidate
 
 __all__ = [
+    "CanonObject",
+    "CanonObjectVersion",
+    "StoryCanonReference",
     "CanonCandidate",
     "ReferenceBinding",
     "ArtifactRelation",
@@ -29,3 +32,7 @@ __all__ = [
     "AuthorityDecision",
     "Scene",
 ]
+
+from app.db.models.canon_object import CanonObject
+from app.db.models.canon_object_version import CanonObjectVersion
+from app.db.models.story_canon_reference import StoryCanonReference

@@ -33,5 +33,21 @@ def resolve_applicable_references(
         Artifact.user_id == user_id, Artifact.media_type == "image", applicable,
     ).order_by(ReferenceBinding.target_type, ReferenceBinding.target_id, ReferenceBinding.role,
                ReferenceBinding.reference_id))
-    return [Reference(kind="artifact", reference_id=binding.artifact_id,
+    result = [Reference(kind="artifact", reference_id=binding.artifact_id,
                       binding_id=binding.reference_id, role=binding.role) for binding in bindings]
+
+    from app.canon.library_service import references
+    from app.db.models import CanonObjectVersion
+    seen = {row.binding_id for row in result}
+    for ref in references(db, story_id):
+        selected = character_ids if ref.target_type == "character" else place_ids
+        if ref.target_id not in selected:
+            continue
+        version = db.get(CanonObjectVersion, ref.canon_version_id)
+        for visual in version.data["visuals"]:
+            artifact = db.get(Artifact, visual["artifact_id"])
+            if artifact and artifact.user_id == user_id and artifact.media_type == "image" and visual["binding_id"] not in seen:
+                result.append(Reference(kind="artifact", reference_id=artifact.artifact_id,
+                    binding_id=visual["binding_id"], role=visual["role"]))
+                seen.add(visual["binding_id"])
+    return result

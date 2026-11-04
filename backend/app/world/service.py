@@ -44,6 +44,9 @@ def get_place(db: Session, story_id: str, place_id: str) -> Place | None:
 
 
 def update_character(db: Session, character: Character, **changes) -> Character:
+    from app.canon.library_service import editable_reference, record_edit
+    ref = editable_reference(db, character.story_id, "character", character.character_id)
+    record_edit(db, ref, structure=changes)
     for field, value in changes.items():
         setattr(character, field, value)
     db.commit()
@@ -52,6 +55,9 @@ def update_character(db: Session, character: Character, **changes) -> Character:
 
 
 def update_place(db: Session, place: Place, **changes) -> Place:
+    from app.canon.library_service import editable_reference, record_edit
+    ref = editable_reference(db, place.story_id, "place", place.place_id)
+    record_edit(db, ref, structure=changes)
     for field, value in changes.items():
         setattr(place, field, value)
     db.commit()

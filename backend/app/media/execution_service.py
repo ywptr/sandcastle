@@ -80,7 +80,9 @@ def execute_storyboard(
                         ReferenceBinding.role == reference.role,
                     ))
                     if binding is None:
-                        raise MediaDomainNotFound("Reference binding not found in story")
+                        from app.canon.library_service import inherited_visual
+                        if not inherited_visual(db, story_id, user_id, reference.binding_id, reference.reference_id, reference.role):
+                            raise MediaDomainNotFound("Reference binding not found in story")
             elif reference.kind in {"character", "outfit"}:
                 if get_character(db, story_id, reference.reference_id) is None:
                     raise MediaDomainNotFound("Character reference not found in story")
