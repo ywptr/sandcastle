@@ -53,9 +53,10 @@ The OpenAI adapter is initialized only on demand and requires `OPENAI_API_KEY`,
 503 and manual authoring remains available. Generation never promotes prose to
 Canon. The local authority gate and Action log remain in place.
 
-Canon extraction and candidate review are deferred: their existing routes return
-503 after ownership checks. The historical empty candidate migration is unchanged;
-this milestone adds no candidate table or extraction UI.
+M7 enables structured Canon extraction and explicit candidate review behind the
+existing ownership boundary; see [Canon intelligence](app/canon/README.md).
+The historical empty candidate migration remains unchanged, and M7 adds its table
+through a new migration.
 
 ## Validation
 
@@ -129,3 +130,19 @@ Generated artifacts and existing execution snapshots are preserved. No bytes are
 uploaded or stored in PostgreSQL; references never become Canon automatically.
 There is no live refinement, storage integration, or IG authentication change.
 M5 video and M7 Canon intelligence remain deferred.
+
+
+## Continuity and Canon intelligence (M7)
+
+[Canon intelligence](app/canon/README.md) extracts bounded structured facts from
+saved Story/Scene text, resolves existing subject IDs, and classifies proposals
+against approved Canon. Candidates remain pending until explicit approval or
+rejection. Conflict replacement supersedes current entries while retaining their
+values and candidate review provenance. No image/reference fact becomes Canon
+automatically, and no provider is required for deterministic extraction.
+
+Migration `b7e193d2c540` creates the candidate table and adds nullable subject/fact
+metadata to existing Canon entries. API operations include extraction, manual
+proposals, filtered listing, reclassification, review, and lightweight continuity
+counts/issues. Apply the migration to the intended development database before
+using these APIs. M8 branching and M4B/M5 live media integrations remain deferred.

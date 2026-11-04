@@ -33,6 +33,9 @@ class CanonEntry(Base):
         index=True,
     )
 
+    subject_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    fact_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
+
     key: Mapped[str] = mapped_column(
         String(255),
     )

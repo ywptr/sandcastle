@@ -11,6 +11,8 @@ class CanonEntryCreate(InputModel):
     type: ShortType
     key: Name
     value: NonBlank
+    subject_id: Name | None = None
+    fact_type: ShortType | None = None
 
 
 class CanonEntryResponse(BaseModel):
@@ -19,6 +21,8 @@ class CanonEntryResponse(BaseModel):
     type: str
     key: str
     value: str
+    subject_id: str | None
+    fact_type: str | None
     status: str
     created_at: datetime
     updated_at: datetime
@@ -29,6 +33,9 @@ class CanonEntryResponse(BaseModel):
 
 
 class CanonEntryUpdate(PatchModel):
+    nullable_fields = {"subject_id", "fact_type"}
+    subject_id: Name | None = None
+    fact_type: ShortType | None = None
     type: ShortType | None = None
     key: Name | None = None
     value: NonBlank | None = None

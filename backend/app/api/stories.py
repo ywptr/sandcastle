@@ -19,10 +19,8 @@ from app.canon.service import (
     get_canon_entry,
     update_canon_entry,
 )
-from app.canon.candidate_schemas import (
-    CanonCandidateResponse,
-)
 from app.db.models.story import Story
+from app.media.errors import InvalidMediaIntent, MediaDomainNotFound
 from app.stories.action_queries import (
     get_latest_decision,
     list_story_actions,
@@ -71,60 +69,6 @@ router = APIRouter(
 )
 
 authority_evaluator = LocalAuthorityEvaluator()
-
-
-@router.post(
-    "/{story_id}/scenes/{scene_id}/canon/extract",
-    response_model=list[CanonCandidateResponse],
-)
-async def extract_scene_canon_endpoint(
-    story_id: str,
-    scene_id: str,
-    db: Session = Depends(get_db),
-    identity: AuthenticatedIdentity = Depends(
-        get_current_identity
-    ),
-):
-    story = require_story(
-        db,
-        story_id,
-        identity,
-    )
-
-    scene = get_scene(
-        db,
-        story.story_id,
-        scene_id,
-    )
-
-    if scene is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Scene not found",
-        )
-
-    # The historical candidate revision is empty; defer this workflow explicitly.
-    raise HTTPException(503, "Canon extraction is not available in this milestone.")
-
-
-@router.get(
-    "/{story_id}/canon/candidates",
-    response_model=list[CanonCandidateResponse],
-)
-def list_canon_candidates_endpoint(
-    story_id: str,
-    db: Session = Depends(get_db),
-    identity: AuthenticatedIdentity = Depends(
-        get_current_identity
-    ),
-):
-    story = require_story(
-        db,
-        story_id,
-        identity,
-    )
-
-    raise HTTPException(503, "Canon candidate review is not available in this milestone.")
 
 
 @router.patch(
@@ -389,13 +333,15 @@ def create_canon_entry_endpoint(
         identity,
     )
 
-    return create_canon_entry(
-        db,
-        story_id=story_id,
-        entry_type=request.type,
-        key=request.key,
-        value=request.value,
-    )
+    try:
+        return create_canon_entry(
+            db, story_id=story_id, entry_type=request.type, key=request.key, value=request.value,
+            subject_id=request.subject_id, fact_type=request.fact_type,
+        )
+    except MediaDomainNotFound as error:
+        raise HTTPException(404, str(error)) from error
+    except InvalidMediaIntent as error:
+        raise HTTPException(422, str(error)) from error
 
 
 @router.get(
@@ -512,7 +458,12 @@ def update_canon_entry_endpoint(
     entry = get_canon_entry(db, story_id, entry_id)
     if entry is None:
         raise HTTPException(404, "Canon entry not found")
-    return update_canon_entry(db, entry, **request.model_dump(exclude_unset=True))
+    try:
+        return update_canon_entry(db, entry, **request.model_dump(exclude_unset=True))
+    except MediaDomainNotFound as error:
+        raise HTTPException(404, str(error)) from error
+    except InvalidMediaIntent as error:
+        raise HTTPException(422, str(error)) from error
 
 
 @router.post("/{story_id}/scenes", response_model=SceneResponse, status_code=201)

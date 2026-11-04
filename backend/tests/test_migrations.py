@@ -24,6 +24,16 @@ def config(output=None):
     return cfg
 
 
+def create_historical_baseline(engine, tables):
+    # Current metadata includes M7 columns; older baselines must not pre-create them.
+    Base.metadata.create_all(engine, tables=[table for table in tables if table.name != "canon_candidates"])
+    with engine.begin() as connection:
+        columns = {column["name"] for column in inspect(connection).get_columns("canon_entries")}
+        for name in ("subject_id", "fact_type"):
+            if name in columns:
+                connection.exec_driver_sql(f"ALTER TABLE canon_entries DROP COLUMN {name}")
+
+
 class MigrationTests(unittest.TestCase):
     def test_postgres_full_history_sql(self):
         output = io.StringIO()
@@ -36,6 +46,8 @@ class MigrationTests(unittest.TestCase):
         self.assertIn("CREATE TABLE artifacts", sql)
         self.assertIn("CREATE TABLE reference_bindings", sql)
         self.assertIn("CREATE TABLE artifact_relations", sql)
+        self.assertIn("CREATE TABLE canon_candidates", sql)
+        self.assertIn("b7e193d2c540", sql)
         self.assertIn("a42d7e90c681", sql)
         self.assertIn("8f31c2d9a670", sql)
         self.assertIn("FOREIGN KEY(story_id) REFERENCES stories (story_id)", sql)
@@ -48,7 +60,7 @@ class MigrationTests(unittest.TestCase):
             url = "sqlite:///" + str(Path(directory) / "migration.db")
             engine = create_engine(url)
             legacy = [table for table in Base.metadata.sorted_tables if table.name not in {"characters", "places", "media_executions", "artifacts", "reference_bindings", "artifact_relations"}]
-            Base.metadata.create_all(engine, tables=legacy)
+            create_historical_baseline(engine, legacy)
             with engine.begin() as connection:
                 connection.execute(Story.__table__.insert().values(story_id="existing", user_id="alice", title="Preserved"))
             with patch.dict(os.environ, {"DATABASE_URL": url}):
@@ -72,7 +84,7 @@ class MigrationTests(unittest.TestCase):
             engine = create_engine(url)
             baseline = [table for table in Base.metadata.sorted_tables
                         if table.name not in {"media_executions", "artifacts", "reference_bindings", "artifact_relations"}]
-            Base.metadata.create_all(engine, tables=baseline)
+            create_historical_baseline(engine, baseline)
             with patch.dict(os.environ, {"DATABASE_URL": url}):
                 command.stamp(config(), "6b2c8f10a4d9")
                 command.upgrade(config(), "head")
@@ -100,7 +112,7 @@ class MigrationTests(unittest.TestCase):
             engine = create_engine(url)
             baseline = [table for table in Base.metadata.sorted_tables if table.name not in
                         {"media_executions", "artifacts", "reference_bindings", "artifact_relations"}]
-            Base.metadata.create_all(engine, tables=baseline)
+            create_historical_baseline(engine, baseline)
             with patch.dict(os.environ, {"DATABASE_URL": url}):
                 command.stamp(config(), "6b2c8f10a4d9")
                 command.upgrade(config(), "8f31c2d9a670")
@@ -145,6 +157,49 @@ class MigrationTests(unittest.TestCase):
                 self.assertNotIn("display_name", [column["name"] for column in inspect(engine).get_columns("artifacts")])
                 with engine.connect() as connection:
                     self.assertEqual(connection.scalar(select(Artifact.artifact_id).where(Artifact.artifact_id == "generated")), "generated")
+                command.upgrade(config(), "head")
+                command.check(config())
+            engine.dispose()
+
+    def test_canon_intelligence_migration_preserves_legacy_canon_and_review_history(self):
+        from sqlalchemy.orm import Session
+        from app.db.models import CanonCandidate, CanonEntry
+        from app.canon.candidate_schemas import CandidateApproval, ManualCandidate
+        from app.canon.candidate_service import approve_candidate, propose_candidate
+
+        with tempfile.TemporaryDirectory(prefix="sandcastle-canon-migration-") as directory:
+            url = "sqlite:///" + str(Path(directory) / "migration.db")
+            engine = create_engine(url)
+            create_historical_baseline(engine, Base.metadata.sorted_tables)
+            with engine.begin() as connection:
+                connection.execute(Story.__table__.insert().values(story_id="story", user_id="alice", title="Preserved"))
+                connection.execute(CanonEntry.__table__.insert().values(
+                    canon_entry_id="legacy", story_id="story", type="world", key="gravity", value="Normal gravity", status="approved"))
+            with patch.dict(os.environ, {"DATABASE_URL": url}):
+                command.stamp(config(), "a42d7e90c681")
+                command.upgrade(config(), "head")
+                command.check(config())
+                with Session(engine) as db:
+                    self.assertIsNone(db.get(CanonEntry, "legacy").subject_id)
+                    proposal = propose_candidate(db, story_id="story", user_id="alice", proposal=ManualCandidate(
+                        type="world", fact_type="rule", key="gravity", value="Low gravity", evidence="Author changes gravity"))
+                    self.assertEqual(proposal.classification, "uncertain")
+                    approved = approve_candidate(db, story_id="story", candidate_id=proposal.canon_candidate_id,
+                        user_id="alice", approval=CandidateApproval(accept_uncertain=True, replace_conflicts=True))
+                    proposal_id = approved.canon_candidate_id
+                    replacement_id = approved.approved_canon_entry_id
+                with Session(engine) as db:
+                    candidate = db.get(CanonCandidate, proposal_id)
+                    self.assertEqual(candidate.status, "approved")
+                    self.assertEqual(candidate.comparison_snapshot[0]["value"], "Normal gravity")
+                    self.assertEqual(db.get(CanonEntry, "legacy").value, "Normal gravity")
+                    self.assertEqual(db.get(CanonEntry, "legacy").status, "superseded")
+                    self.assertEqual(db.get(CanonEntry, replacement_id).value, "Low gravity")
+                command.downgrade(config(), "a42d7e90c681")
+                self.assertNotIn("canon_candidates", inspect(engine).get_table_names())
+                self.assertNotIn("subject_id", [column["name"] for column in inspect(engine).get_columns("canon_entries")])
+                with engine.connect() as connection:
+                    self.assertEqual(connection.scalar(select(CanonEntry.value).where(CanonEntry.canon_entry_id == "legacy")), "Normal gravity")
                 command.upgrade(config(), "head")
                 command.check(config())
             engine.dispose()

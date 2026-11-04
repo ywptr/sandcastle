@@ -13,7 +13,10 @@ from app.db.models.artifact import Artifact
 from app.db.models.reference_binding import ReferenceBinding
 from app.db.models.artifact_relation import ArtifactRelation
 
+from app.db.models.canon_candidate import CanonCandidate
+
 __all__ = [
+    "CanonCandidate",
     "ReferenceBinding",
     "ArtifactRelation",
     "MediaExecution",

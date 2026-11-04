@@ -11,6 +11,7 @@ from app.api.world import router as world_router
 from app.api.media import router as media_router
 from app.api.media_executions import router as media_execution_router
 from app.api.artifacts import router as artifact_router
+from app.api.canon_intelligence import router as canon_intelligence_router
 
 app = FastAPI(
     title="Sandcastle",
@@ -44,6 +45,7 @@ app.include_router(world_router, prefix="/api")
 app.include_router(media_router, prefix="/api")
 app.include_router(media_execution_router, prefix="/api")
 app.include_router(artifact_router, prefix="/api")
+app.include_router(canon_intelligence_router, prefix="/api")
 
 
 @app.get("/health")

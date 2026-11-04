@@ -40,6 +40,11 @@ class OpenAICanonExtractor(CanonExtractor):
                 type=item["type"],
                 key=item["key"],
                 value=item["value"],
+                evidence=item["evidence"],
+                subject_name=item.get("subject_name"),
+                subject_id=item.get("subject_id"),
+                fact_type=item.get("fact_type", "statement"),
+                explicit=item.get("explicit", True),
             )
             for item in payload
         ]
@@ -64,24 +69,19 @@ Format:
 [
   {{
     "type": "character",
-    "key": "character.mara.eye_color",
-    "value": "Mara has green eyes."
+    "key": "eye_color",
+    "value": "green",
+    "subject_name": "Mara",
+    "fact_type": "physical_trait",
+    "evidence": "Mara has green eyes."
   }}
 ]
 
-Useful types include:
-character
-outfit
-world
-timeline
-relationship
-rule
-plot
-location
-object
-food
-vehicle
-organization
+Use type character, place, world, timeline, event, or story.
+Use a short property key such as eye_color rather than a name-based path.
+Include the exact source excerpt as evidence. Mark inferred or ambiguous facts
+with explicit=false. Return subject_name for named Characters or Places;
+do not invent subject IDs or create new domain objects.
 
 Only extract facts that may matter for future continuity.
 Do not extract temporary prose details unless they establish
