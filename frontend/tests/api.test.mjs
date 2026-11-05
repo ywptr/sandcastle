@@ -73,3 +73,30 @@ test("non-auth API requests remain relative and do not suppress authorization er
     });
     await assert.rejects(api.listStories(), (error) => error instanceof api.ApiError && error.status === 401);
 });
+
+test("guidance requests stay same-origin and do not call Scene generation", async (t) => {
+    const calls = [];
+    t.mock.method(globalThis, "fetch", async (url, options) => {
+        calls.push([url, options.method]);
+        assert.equal(options.credentials, "include");
+        return json(url.endsWith("next-scene") ? { story_id: "story", suggestions: [] } : { audience: "teen" });
+    });
+    await api.getGuidanceProfile("story");
+    await api.saveGuidanceProfile("story", { audience: "teen", maturity_rating: "mild" });
+    await api.suggestNextScene("story");
+    assert.deepEqual(calls, [["/api/stories/story/guidance/profile", undefined], ["/api/stories/story/guidance/profile", "PUT"], ["/api/stories/story/guidance/next-scene", "POST"]]);
+});
+
+test("choosing a suggestion passes its editable text without fetching or generating", async (t) => {
+    const { SuggestionChoices } = await server.ssrLoadModule("/src/components/NarrativeGuidance.tsx");
+    const suggestion = { id: "1", title: "A small step", text: "Try a small step toward the goal." };
+    let requestText = "Existing request";
+    let fetches = 0;
+    t.mock.method(globalThis, "fetch", async () => { fetches++; throw Error("Selection must not fetch"); });
+    const tree = SuggestionChoices({ suggestions: [suggestion], onSelect: (text) => { requestText = text; } });
+    const article = tree.props.children[0];
+    const button = article.props.children.find((child) => child?.type === "button");
+    button.props.onClick();
+    assert.equal(requestText, suggestion.text);
+    assert.equal(fetches, 0);
+});

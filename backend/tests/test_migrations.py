@@ -26,7 +26,7 @@ def config(output=None):
 
 def create_historical_baseline(engine, tables):
     # Current metadata includes M7 columns; older baselines must not pre-create them.
-    Base.metadata.create_all(engine, tables=[table for table in tables if table.name not in {"canon_candidates", "canon_objects", "canon_object_versions", "story_canon_references"}])
+    Base.metadata.create_all(engine, tables=[table for table in tables if table.name not in {"canon_candidates", "canon_objects", "canon_object_versions", "story_canon_references", "universes", "universe_story_memberships", "universe_canon_references", "narrative_guidance_profiles"}])
     with engine.begin() as connection:
         columns = {column["name"] for column in inspect(connection).get_columns("canon_entries")}
         for name in ("subject_id", "fact_type"):
@@ -50,6 +50,9 @@ class MigrationTests(unittest.TestCase):
         self.assertIn("CREATE TABLE canon_objects", sql)
         self.assertIn("CREATE TABLE canon_object_versions", sql)
         self.assertIn("CREATE TABLE story_canon_references", sql)
+        self.assertIn("CREATE TABLE universes", sql)
+        self.assertIn("CREATE TABLE narrative_guidance_profiles", sql)
+        self.assertIn("CREATE TABLE universe_canon_references", sql)
         self.assertIn("b7e193d2c540", sql)
         self.assertIn("a42d7e90c681", sql)
         self.assertIn("8f31c2d9a670", sql)
@@ -256,6 +259,103 @@ class MigrationTests(unittest.TestCase):
                     self.assertEqual(db.get(CanonCandidate, candidate_id).status, "pending")
                 with self.assertRaisesRegex(RuntimeError, "Export"):
                     command.downgrade(config(), "b7e193d2c540")
+            engine.dispose()
+
+    def test_universe_migration_preserves_prior_milestones_and_round_trips(self):
+        from sqlalchemy.orm import Session
+        from app.db.models import (Character, Place, Scene, CanonEntry, CanonCandidate, CanonObject,
+            CanonObjectVersion, StoryCanonReference, Artifact, ReferenceBinding)
+        with tempfile.TemporaryDirectory(prefix="sandcastle-universe-migration-") as directory:
+            url = "sqlite:///" + str(Path(directory) / "migration.db")
+            engine = create_engine(url)
+            new_tables = {"universes", "universe_story_memberships", "universe_canon_references", "narrative_guidance_profiles"}
+            Base.metadata.create_all(engine, tables=[table for table in Base.metadata.sorted_tables if table.name not in new_tables])
+            with Session(engine) as db:
+                db.add(Story(story_id="s", user_id="alice", title="Legacy"))
+                db.flush()
+                db.add(Character(character_id="c", story_id="s", name="Mara"))
+                db.add(Place(place_id="p", story_id="s", name="Harbor"))
+                db.add(Scene(scene_id="scene", story_id="s", sequence_number=1, content="Preserved prose"))
+                db.add(CanonEntry(canon_entry_id="fact", story_id="s", type="character", subject_id="c", key="age", value="35"))
+                db.add(CanonCandidate(canon_candidate_id="candidate", user_id="alice", story_id="s", type="character", subject_id="c",
+                    fact_type="age", key="age", value="35", evidence="Author", source_kind="manual", source_snapshot="Author",
+                    source_hash="a" * 64, dedup_key="b" * 64, extraction_data={}, reasoning="Preserved reasoning"))
+                db.add(CanonObject(canon_object_id="object", user_id="alice", object_type="character", name="Mara"))
+                db.flush()
+                db.add(CanonObjectVersion(canon_version_id="v1", canon_object_id="object", version_number=1,
+                    data={"structure": {"name": "Mara"}, "facts": [], "visuals": []}))
+                db.add(Artifact(artifact_id="art", user_id="alice", source="external", retrieval_reference="https://example.test/image"))
+                db.flush()
+                db.add(StoryCanonReference(reference_id="ref", story_id="s", canon_object_id="object", canon_version_id="v1", target_type="character", target_id="c"))
+                db.add(ReferenceBinding(reference_id="visual", user_id="alice", story_id="s", artifact_id="art", target_type="character", target_id="c", role="character_identity"))
+                db.commit()
+            with patch.dict(os.environ, {"DATABASE_URL": url}):
+                command.stamp(config(), "c81f24a709de")
+                command.upgrade(config(), "head")
+                command.check(config())
+                with Session(engine) as db:
+                    self.assertEqual(db.get(Character, "c").name, "Mara")
+                    self.assertEqual(db.get(Place, "p").name, "Harbor")
+                    self.assertEqual(db.get(Scene, "scene").content, "Preserved prose")
+                    self.assertEqual(db.get(CanonEntry, "fact").value, "35")
+                    self.assertEqual(db.get(CanonCandidate, "candidate").reasoning, "Preserved reasoning")
+                    self.assertEqual(db.get(StoryCanonReference, "ref").canon_version_id, "v1")
+                    self.assertEqual(db.get(ReferenceBinding, "visual").artifact_id, "art")
+                    self.assertIsNotNone(db.get(Artifact, "art"))
+                command.downgrade(config(), "c81f24a709de")
+                self.assertNotIn("universes", inspect(engine).get_table_names())
+                command.upgrade(config(), "head")
+                command.check(config())
+                from app.universes.service import create_universe
+                with Session(engine) as db:
+                    create_universe(db, "alice", name="Durable")
+                with self.assertRaisesRegex(RuntimeError, "Export"):
+                    command.downgrade(config(), "c81f24a709de")
+            engine.dispose()
+        output = io.StringIO()
+        with patch.dict(os.environ, {"DATABASE_URL": "postgresql+psycopg://audit:audit@localhost/audit"}):
+            command.downgrade(config(output), "d93b71c602fa:c81f24a709de", sql=True)
+        self.assertIn("DROP TABLE universe_canon_references", output.getvalue())
+
+    def test_guidance_migration_preserves_legacy_story_and_profile_defaults(self):
+        from sqlalchemy.orm import Session
+        from app.db.models import Scene, Universe, UniverseStoryMembership, CanonObject, CanonObjectVersion
+        from app.guidance.service import get_profile, save_profile
+        from app.guidance.schemas import GuidanceProfileInput
+        with tempfile.TemporaryDirectory(prefix="sandcastle-guidance-migration-") as directory:
+            url = "sqlite:///" + str(Path(directory) / "migration.db")
+            engine = create_engine(url)
+            Base.metadata.create_all(engine, tables=[table for table in Base.metadata.sorted_tables if table.name != "narrative_guidance_profiles"])
+            with Session(engine) as db:
+                db.add(Story(story_id="legacy", user_id="alice", title="Preserved", premise="A garden", objective="Protect it"))
+                db.add(Universe(universe_id="world", user_id="alice", name="World"))
+                db.add(CanonObject(canon_object_id="object", user_id="alice", object_type="character", name="Mara"))
+                db.flush()
+                db.add(Scene(scene_id="scene", story_id="legacy", sequence_number=1, content="Original prose"))
+                db.add(UniverseStoryMembership(story_id="legacy", universe_id="world"))
+                db.add(CanonObjectVersion(canon_version_id="version", canon_object_id="object", version_number=1,
+                    data={"structure": {"name": "Mara"}, "facts": [], "visuals": []}))
+                db.commit()
+            with patch.dict(os.environ, {"DATABASE_URL": url}):
+                command.stamp(config(), "d93b71c602fa")
+                command.upgrade(config(), "head")
+                command.check(config())
+                with Session(engine) as db:
+                    profile = get_profile(db, "legacy", "alice")
+                    self.assertEqual((profile.audience, profile.maturity_rating), ("adult", "general"))
+                    self.assertEqual(profile.rating_count, 0)
+                    self.assertEqual(db.get(Story, "legacy").objective, "Protect it")
+                    save_profile(db, "legacy", "alice", GuidanceProfileInput(audience="teen", maturity_rating="moderate"))
+                    self.assertEqual(get_profile(db, "legacy", "alice").audience, "teen")
+                command.downgrade(config(), "d93b71c602fa")
+                self.assertNotIn("narrative_guidance_profiles", inspect(engine).get_table_names())
+                with Session(engine) as db:
+                    self.assertEqual(db.get(Story, "legacy").title, "Preserved")
+                    self.assertEqual(db.get(Scene, "scene").content, "Original prose")
+                    self.assertEqual(db.get(UniverseStoryMembership, "legacy").universe_id, "world")
+                    self.assertIsNotNone(db.get(CanonObjectVersion, "version"))
+                command.upgrade(config(), "head")
+                command.check(config())
             engine.dispose()
 
 

@@ -49,6 +49,8 @@ class VersionResponse(BaseModel):
 
 class StoryReferenceResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
+    inherited: bool = False
+    universe_id: str | None = None
     reference_id: str
     story_id: str
     canon_object_id: str

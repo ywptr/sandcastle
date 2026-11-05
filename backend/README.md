@@ -153,3 +153,26 @@ Characters and Places can be explicitly promoted, shared through pinned versions
 and forked before Story-specific changes. Existing Story subject IDs remain valid.
 See [Canon Library](app/canon/LIBRARY.md) for APIs, M7/M6 integration and migration
 `c81f24a709de`. No automatic version following, Universe scope, or provider calls.
+
+### M9A — Shared Universe / World foundation
+
+Optional account-owned Universes pin existing M8 Canon versions. Member Stories
+inherit effective Canon without copies, can override pins or explicitly fork, and
+publish discoveries only through explicit promotion. See [Universe foundation](app/universes/README.md)
+for APIs, precedence, stable subject IDs and migration `d93b71c602fa`.
+
+### M9B — Narrative guidance
+
+Stories can save separate audience/maturity settings and optional private feedback.
+Provider-neutral next-scene guidance returns short alternatives without creating
+Scenes or changing Canon. The Scene form can place a selected alternative into
+its existing editable request textbox. See [Narrative guidance](app/guidance/README.md)
+for APIs, the deterministic fallback, context limits and migration `e04c8a12b763`.
+
+### M9C — Audience-aware media adaptation
+
+Ephemeral shot plans preserve original narrative beats while producing explicit,
+audience-aware visual treatments. Adapted four-panel planning reuses M4A/M3 and
+keeps raw sensitive prose out of compiled prompts. See [Media adaptation](app/media/adaptation/README.md)
+for APIs, continuity review issues, deterministic limitations and reference flow.
+No persistence, frontend media workspace, provider execution or video is added.

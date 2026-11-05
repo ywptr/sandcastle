@@ -81,6 +81,8 @@ class MediaContext(InputModel):
     panel_count: int | None = Field(default=None, ge=1)
     panel_role: NonBlank | None = None
     source_artifact_id: Name | None = None
+    adaptation_id: str | None = None
+    adapted_shot_sequences: list[int] = Field(default_factory=list)
 
 
 class MediaRequest(InputModel):

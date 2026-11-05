@@ -121,6 +121,7 @@ def _scene_image_requests(
     *,
     visual_moments: list[str] | None = None,
     purpose: MediaPurpose = MediaPurpose.SCENE,
+    visual_only: bool = False,
 ) -> list[MediaRequest]:
     scene = get_scene(db, story.story_id, scene_id)
     if scene is None:
@@ -133,7 +134,7 @@ def _scene_image_requests(
     return [MediaRequest(
         media_type=MediaType.IMAGE,
         purpose=purpose,
-        prompt=_build_instruction(story, scene, characters, places, canon, visual_moment=moment),
+        prompt=moment if visual_only else _build_instruction(story, scene, characters, places, canon, visual_moment=moment),
         story_id=story.story_id,
         scene_id=scene.scene_id,
         references=references,

@@ -353,3 +353,36 @@ export function updateCanon(storyId: string, id: string, input: Partial<CanonInp
 export function createScene(storyId: string, title: string | null, content: string) {
     return write<Scene>(`/stories/${storyId}/scenes`, "POST", { title, content });
 }
+
+export interface GuidanceProfileInput {
+    audience: "child" | "teen" | "adult";
+    maturity_rating: "general" | "mild" | "moderate" | "mature";
+    tone: string | null;
+    genre: string | null;
+    guidance_notes: string | null;
+    average_rating: number | null;
+    rating_count: number;
+    feedback_tags: string[];
+}
+
+export interface GuidanceProfile extends GuidanceProfileInput {
+    story_id: string;
+    created_at: string | null;
+    updated_at: string | null;
+}
+
+export interface NextSceneSuggestion { id: string; title: string; text: string }
+
+export function getGuidanceProfile(storyId: string) {
+    return request<GuidanceProfile>(`/stories/${storyId}/guidance/profile`);
+}
+
+export function saveGuidanceProfile(storyId: string, profile: GuidanceProfileInput) {
+    return request<GuidanceProfile>(`/stories/${storyId}/guidance/profile`, {
+        method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(profile),
+    });
+}
+
+export function suggestNextScene(storyId: string) {
+    return write<{ story_id: string; suggestions: NextSceneSuggestion[] }>(`/stories/${storyId}/guidance/next-scene`, "POST", {});
+}

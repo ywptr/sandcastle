@@ -16,6 +16,8 @@ from app.db.models.artifact_relation import ArtifactRelation
 from app.db.models.canon_candidate import CanonCandidate
 
 __all__ = [
+    "NarrativeGuidanceProfile",
+    "Universe", "UniverseStoryMembership", "UniverseCanonReference",
     "CanonObject",
     "CanonObjectVersion",
     "StoryCanonReference",
@@ -36,3 +38,9 @@ __all__ = [
 from app.db.models.canon_object import CanonObject
 from app.db.models.canon_object_version import CanonObjectVersion
 from app.db.models.story_canon_reference import StoryCanonReference
+
+from app.db.models.universe import Universe
+from app.db.models.universe_story_membership import UniverseStoryMembership
+from app.db.models.universe_canon_reference import UniverseCanonReference
+
+from app.db.models.narrative_guidance_profile import NarrativeGuidanceProfile

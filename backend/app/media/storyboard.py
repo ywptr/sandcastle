@@ -8,6 +8,8 @@ from app.media.service import (
     InvalidMediaIntent, MediaDomainNotFound, _require_story, _scene_image_requests,
 )
 from app.stories.scene_service import get_scene
+from app.media.adaptation.schemas import AdaptationOptions, MediaAdaptationPlan
+from app.media.adaptation.service import build_adaptation_context, validate_plan
 
 # Composition defaults, not a required dramatic arc or execution strategy.
 _PANEL_FOCUS = (
@@ -37,6 +39,7 @@ def create_four_panel_storyboard(
     scene_id: str,
     user_id: str,
     options: SceneImageOptions | None = None,
+    adaptation: MediaAdaptationPlan | None = None,
 ) -> StoryboardPlan:
     story = _require_story(db, story_id, user_id)
     scene = get_scene(db, story.story_id, scene_id)
@@ -46,15 +49,31 @@ def create_four_panel_storyboard(
         raise InvalidMediaIntent("Scene content cannot be blank")
 
     options = options or SceneImageOptions()
+    groups = None
+    if adaptation is not None:
+        adaptation_options = options if isinstance(options, AdaptationOptions) else AdaptationOptions(**options.model_dump(), output_format=adaptation.output_format)
+        context = build_adaptation_context(db, story_id=story_id, scene_id=scene_id, user_id=user_id, options=adaptation_options)
+        validate_plan(context, adaptation)
+        if adaptation.issues:
+            raise InvalidMediaIntent("Resolve adaptation continuity issues before compiling a storyboard")
+        shots = adaptation.shots
+        groups = [shots[i * len(shots) // 4:(i + 1) * len(shots) // 4] if len(shots) >= 4
+                  else [shots[min(i * len(shots) // 4, len(shots) - 1)]] for i in range(4)]
     # This is individual-panel framing, not a composite layout or call count.
     options = options.model_copy(update={"aspect_ratio": options.aspect_ratio or "1:1"})
-    beats = _visual_beats(scene.content)
+    beats = ["\n".join(f"{shot.framing_hint}: {shot.visual_instruction}" for shot in group) for group in groups] if groups else _visual_beats(scene.content)
     # Reuse M3's context selection, reference construction and instruction compiler.
     # Context is loaded once for all panels, keeping identity references consistent.
     requests = _scene_image_requests(
-        db, story, scene_id, options, visual_moments=beats, purpose=MediaPurpose.COMIC_PANEL,
+        db, story, scene_id, options, visual_moments=beats, purpose=MediaPurpose.COMIC_PANEL, visual_only=adaptation is not None,
     )
     for number, (request, (role, focus)) in enumerate(zip(requests, _PANEL_FOCUS), start=1):
+        if adaptation is not None:
+            group = groups[number - 1]
+            request.context.adaptation_id = adaptation.adaptation_id
+            request.context.adapted_shot_sequences = [shot.sequence for shot in group]
+            refs = {ref.model_dump_json(): ref for shot in group for ref in shot.references}
+            request.references = list(refs.values())
         request.context.panel_number = number
         request.context.panel_count = 4
         request.context.panel_role = role

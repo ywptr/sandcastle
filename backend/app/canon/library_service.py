@@ -32,18 +32,20 @@ def get_version(db, obj, version_id):
 
 
 def references(db, story_id):
-    return list(db.scalars(select(StoryCanonReference).where(StoryCanonReference.story_id == story_id).order_by(StoryCanonReference.reference_id)))
+    local = list(db.scalars(select(StoryCanonReference).where(StoryCanonReference.story_id == story_id).order_by(StoryCanonReference.reference_id)))
+    from app.universes.resolver import inherited_references
+    return local + inherited_references(db, story_id, local)
 
 
 def subject_reference(db, story_id, target_type, target_id):
-    return db.scalar(select(StoryCanonReference).where(StoryCanonReference.story_id == story_id,
-        StoryCanonReference.target_type == target_type, StoryCanonReference.target_id == target_id))
+    return next((ref for ref in references(db, story_id)
+                 if ref.target_type == target_type and ref.target_id == target_id), None)
 
 
 def reference(db, story_id, reference_id, user_id):
     story(db, story_id, user_id)
-    row = db.get(StoryCanonReference, reference_id)
-    if row is None or row.story_id != story_id:
+    row = next((ref for ref in references(db, story_id) if ref.reference_id == reference_id), None)
+    if row is None:
         raise HTTPException(404, "Canon reference not found")
     get_object(db, row.canon_object_id, user_id)
     return row
@@ -142,12 +144,18 @@ def move(db, story_id, user_id, reference_id, version_id):
     version = get_version(db, obj, version_id)
     if version.created_by_story_id and version.created_by_story_id != story_id:
         raise HTTPException(409, "Cannot pin another Story's branch")
-    ref.canon_version_id = version_id
-    target = (world.get_character if ref.target_type == "character" else world.get_place)(db, story_id, ref.target_id)
-    for key, value in version.data["structure"].items():
-        setattr(target, key, value)
-    db.commit()
-    return ref
+    from app.universes.resolver import materialize_reference
+    try:
+        ref = materialize_reference(db, ref)
+        ref.canon_version_id = version_id
+        target = (world.get_character if ref.target_type == "character" else world.get_place)(db, story_id, ref.target_id)
+        for key, value in version.data["structure"].items():
+            setattr(target, key, value)
+        db.commit()
+        return ref
+    except Exception:
+        db.rollback()
+        raise
 
 
 def fork(db, story_id, user_id, reference_id, reason):
@@ -156,10 +164,16 @@ def fork(db, story_id, user_id, reference_id, reason):
     ref = reference(db, story_id, reference_id, user_id)
     obj = get_object(db, ref.canon_object_id, user_id)
     parent = get_version(db, obj, ref.canon_version_id)
-    version = append_version(db, obj, parent.data, parent, story_id, reason)
-    ref.canon_version_id = version.canon_version_id
-    db.commit()
-    return ref
+    from app.universes.resolver import materialize_reference
+    try:
+        ref = materialize_reference(db, ref)
+        version = append_version(db, obj, parent.data, parent, story_id, reason)
+        ref.canon_version_id = version.canon_version_id
+        db.commit()
+        return ref
+    except Exception:
+        db.rollback()
+        raise
 
 
 def editable_reference(db, story_id, kind, subject_id):
