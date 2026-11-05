@@ -16,6 +16,7 @@ from app.api.canon_library import router as canon_library_router
 from app.api.universes import router as universe_router
 from app.api.guidance import router as guidance_router
 from app.api.media_adaptation import router as media_adaptation_router
+from app.api.workflows import router as workflow_router
 
 app = FastAPI(
     title="Sandcastle",
@@ -54,6 +55,7 @@ app.include_router(canon_library_router, prefix="/api")
 app.include_router(universe_router, prefix="/api")
 app.include_router(guidance_router, prefix="/api")
 app.include_router(media_adaptation_router, prefix="/api")
+app.include_router(workflow_router, prefix="/api")
 
 
 @app.get("/health")

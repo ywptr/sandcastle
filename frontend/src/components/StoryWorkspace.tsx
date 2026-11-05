@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import {
-    createCanonEntry, listActions, listCanon, listCharacters, listPlaces, listScenes,
+    getStoryWorkflow, type StoryWorkflow, createCanonEntry, listActions, listCanon, listCharacters, listPlaces, listScenes,
     saveCharacter, savePlace, updateCanon, updateStory,
     type CanonEntry, type Character, type Place, type Scene, type Story, type StoryAction,
 } from "../api/sandcastle";
 import { RecordEditor, type EditorField } from "./RecordEditor";
 import { WorldPanel } from "./WorldPanel";
 import { ScenePanel } from "./ScenePanel";
+import { WorkflowPanel } from "./WorkflowPanel";
 
 const characterFields: EditorField[] = [
     { name: "name", label: "Name", required: true, maxLength: 255 },
@@ -43,6 +44,7 @@ interface Props {
 }
 
 export function StoryWorkspace({ story, onStoryUpdated }: Props) {
+    const [workflow, setWorkflow] = useState<StoryWorkflow | null>(null);
     const [characters, setCharacters] = useState<Character[]>([]);
     const [places, setPlaces] = useState<Place[]>([]);
     const [canon, setCanon] = useState<CanonEntry[]>([]);
@@ -56,14 +58,15 @@ export function StoryWorkspace({ story, onStoryUpdated }: Props) {
 
     useEffect(() => {
         let active = true;
-        Promise.all([listCharacters(storyId), listPlaces(storyId), listCanon(storyId), listScenes(storyId), listActions(storyId)])
-            .then(([nextCharacters, nextPlaces, nextCanon, nextScenes, nextActions]) => {
+        Promise.all([listCharacters(storyId), listPlaces(storyId), listCanon(storyId), listScenes(storyId), listActions(storyId), getStoryWorkflow(storyId)])
+            .then(([nextCharacters, nextPlaces, nextCanon, nextScenes, nextActions, nextWorkflow]) => {
                 if (!active) return;
                 setCharacters(nextCharacters);
                 setPlaces(nextPlaces);
                 setCanon(nextCanon);
                 setScenes(nextScenes);
                 setActions(nextActions);
+                setWorkflow(nextWorkflow);
                 setError(null);
             }).catch((failure) => {
                 if (active) setError(failure instanceof Error ? failure.message : "Could not load story world.");
@@ -90,10 +93,11 @@ export function StoryWorkspace({ story, onStoryUpdated }: Props) {
                         setEditingStory(false);
                     }} />}
             </header>
+            {workflow && <WorkflowPanel key={storyId} workflow={workflow} onSaved={setWorkflow} onDomainChanged={() => setReload((value) => value + 1)} sceneId={scenes.at(-1)?.scene_id} />}
             <nav className="workspace-nav" aria-label="Story workspace">
-                <a href="#characters">Characters</a><a href="#places">Places</a><a href="#canon">Canon</a><a href="#scenes">Scenes</a>
+                {workflow?.capabilities.includes("structured_world") && <><a href="#characters">Characters</a><a href="#places">Places</a><a href="#canon">Canon</a></>}<a href="#scenes">Scenes</a>
             </nav>
-            <div className="workspace-grid">
+            {workflow?.capabilities.includes("structured_world") && <><div className="workspace-grid">
                 <WorldPanel title="Characters" singular="character" fields={characterFields}
                     records={characters.map((item) => ({ id: item.character_id, title: item.name,
                         values: { name: item.name, description: item.description, appearance: item.appearance, outfit: item.outfit, personality: item.personality } }))}
@@ -124,7 +128,8 @@ export function StoryWorkspace({ story, onStoryUpdated }: Props) {
                         setCanon((current) => upsert(current, item, (entry) => entry.canon_entry_id));
                     }} />
             </div>
-            <ScenePanel storyId={storyId} scenes={scenes} onSaved={(scene) => {
+            </>}
+            <ScenePanel workflow={workflow ?? undefined} storyId={storyId} scenes={scenes} onSaved={(scene) => {
                 setScenes((current) => upsert(current, scene, (entry) => entry.scene_id).sort((a, b) => a.sequence_number - b.sequence_number));
             }} onGenerated={async () => setActions(await listActions(storyId))} />
             <details className="panel actions-panel">

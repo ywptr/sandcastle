@@ -16,8 +16,8 @@ export function SuggestionChoices({ suggestions, onSelect, disabled = false }: {
     </div>;
 }
 
-export function NarrativeGuidance({ storyId, onSelect, disabled }: {
-    storyId: string; onSelect: (text: string) => void; disabled: boolean;
+export function NarrativeGuidance({ storyId, onSelect, disabled, capabilities = ["audience_controls", "profile_details"], suggestionsEnabled = true }: {
+    storyId: string; onSelect: (text: string) => void; disabled: boolean; capabilities?: string[]; suggestionsEnabled?: boolean;
 }) {
     const [profile, setProfile] = useState<GuidanceProfileInput | null>(null);
     const [suggestions, setSuggestions] = useState<NextSceneSuggestion[]>([]);
@@ -66,23 +66,26 @@ export function NarrativeGuidance({ storyId, onSelect, disabled }: {
                         <option value="child">Child</option><option value="teen">Teen</option><option value="adult">Adult</option>
                     </select>
                 </label>
-                <label>Content maturity
+                {capabilities.includes("profile_details") && <><label>Content maturity
                     <select value={profile.maturity_rating} onChange={(event) => setProfile({ ...profile, maturity_rating: event.target.value as GuidanceProfileInput["maturity_rating"] })}>
                         <option value="general">General</option><option value="mild">Mild</option>
                         <option value="moderate">Moderate</option><option value="mature">Mature</option>
                     </select>
                 </label>
+                {(["tone", "genre"] as const).map((field) => <label key={field}>{field === "tone" ? "Tone" : "Genre"}<input maxLength={255} value={profile[field] ?? ""} onChange={(event) => setProfile({ ...profile, [field]: event.target.value || null })} /></label>)}
+                </>}
                 <p className="muted">Audience describes the reader; maturity sets the content ceiling. Child: general/mild. Teen: up to moderate. Adult does not imply explicit content.</p>
                 <button type="button" className="secondary-button" onClick={save}>Save audience settings</button>
             </fieldset>}
             {!profile && !error && <p role="status">Loading guidance settings…</p>}
         </details>
         <p className="muted">Suggestions are advisory planning prompts using saved settings. Choosing one fills the textbox for you to edit; it does not write a scene or change Canon.</p>
-        <button type="button" className="secondary-button" disabled={disabled || busy || !profile}
+        {suggestionsEnabled && <><button type="button" className="secondary-button" disabled={disabled || busy || !profile}
             onClick={suggest}>{busy ? "Working…" : "Suggest what happens next"}</button>
         <SuggestionChoices suggestions={suggestions} disabled={disabled || busy} onSelect={(text) => {
             onSelect(text); setStatus("Suggestion added to the textbox. Edit it before generating when ready.");
         }} />
+        </>}
         {status && <p role="status">{status}</p>}
         {error && <p role="alert" className="error">{error}
             {!profile && <button type="button" className="secondary-button" onClick={() => setRetry((value) => value + 1)}>Retry</button>}

@@ -361,3 +361,9 @@
 .narrative-guidance label { display: grid; gap: .25rem; }
 .suggestion-choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: .75rem; margin-block: .75rem; }
 .suggestion-choices article { border: 1px solid currentColor; border-radius: .5rem; padding: .75rem; }
+
+.workflow-panel { margin-block: 1rem; }
+.workflow-panel fieldset { display: grid; gap: .6rem; margin-block: .6rem; }
+.workflow-panel label { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+.workflow-panel input[type="number"] { max-width: 5rem; }
+.workflow-panel li { margin-block: .6rem; white-space: pre-wrap; }

@@ -176,3 +176,12 @@ audience-aware visual treatments. Adapted four-panel planning reuses M4A/M3 and
 keeps raw sensitive prose out of compiled prompts. See [Media adaptation](app/media/adaptation/README.md)
 for APIs, continuity review issues, deterministic limitations and reference flow.
 No persistence, frontend media workspace, provider execution or video is added.
+
+### M10 — Workflow templates and difficulty
+
+Stories now have version-pinned workflow configuration with curated Standard,
+Guided, Canon Strict and Webtoon templates. Easy/Normal/Difficult/Impossible
+control capability disclosure independently of subscriptions. Explicit workflow
+actions reuse existing Canon, guidance and adaptation services; no graph runner
+or IG execution is added. See [Workflows](app/workflows/README.md) and migration
+`f15d7b92a640`.

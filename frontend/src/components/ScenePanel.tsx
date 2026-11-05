@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { createScene, generateScene, updateScene, type Scene } from "../api/sandcastle";
+import { createScene, generateScene, updateScene, type Scene, type StoryWorkflow } from "../api/sandcastle";
 import { NarrativeGuidance } from "./NarrativeGuidance";
 import { RecordEditor, type EditorField } from "./RecordEditor";
 
@@ -9,13 +9,14 @@ const fields: EditorField[] = [
 ];
 
 interface Props {
+    workflow?: StoryWorkflow;
     storyId: string;
     scenes: Scene[];
     onSaved: (scene: Scene) => void;
     onGenerated: () => Promise<void>;
 }
 
-export function ScenePanel({ storyId, scenes, onSaved, onGenerated }: Props) {
+export function ScenePanel({ storyId, scenes, onSaved, onGenerated, workflow }: Props) {
     const [editing, setEditing] = useState<string | null>(null);
     const [request, setRequest] = useState("");
     const [generating, setGenerating] = useState(false);
@@ -79,7 +80,7 @@ export function ScenePanel({ storyId, scenes, onSaved, onGenerated }: Props) {
             <details className="generation-options">
                 <summary>Optional: generate the next scene</summary>
                 <p className="muted">Uses your saved Story, Characters, Places, approved Canon, and edited previous Scenes. Available when AI writing is enabled.</p>
-                <NarrativeGuidance key={storyId} storyId={storyId} onSelect={setRequest} disabled={generating || editing !== null} />
+                <NarrativeGuidance key={storyId} capabilities={workflow?.capabilities} suggestionsEnabled={workflow?.configuration.steps.find((s) => s.step_id === "narrative_guidance")?.enabled ?? true} storyId={storyId} onSelect={setRequest} disabled={generating || editing !== null} />
                 <label className="generation-request">What should happen next?
                     <textarea value={request} disabled={generating} onChange={(event) => setRequest(event.target.value)} rows={3} />
                 </label>

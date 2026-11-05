@@ -79,12 +79,12 @@ test("guidance requests stay same-origin and do not call Scene generation", asyn
     t.mock.method(globalThis, "fetch", async (url, options) => {
         calls.push([url, options.method]);
         assert.equal(options.credentials, "include");
-        return json(url.endsWith("next-scene") ? { story_id: "story", suggestions: [] } : { audience: "teen" });
+        return json(url.endsWith("narrative_guidance") ? { story_id: "story", suggestions: [] } : { audience: "teen" });
     });
     await api.getGuidanceProfile("story");
     await api.saveGuidanceProfile("story", { audience: "teen", maturity_rating: "mild" });
     await api.suggestNextScene("story");
-    assert.deepEqual(calls, [["/api/stories/story/guidance/profile", undefined], ["/api/stories/story/guidance/profile", "PUT"], ["/api/stories/story/guidance/next-scene", "POST"]]);
+    assert.deepEqual(calls, [["/api/stories/story/guidance/profile", undefined], ["/api/stories/story/guidance/profile", "PUT"], ["/api/stories/story/workflow/steps/narrative_guidance", "POST"]]);
 });
 
 test("choosing a suggestion passes its editable text without fetching or generating", async (t) => {
@@ -99,4 +99,36 @@ test("choosing a suggestion passes its editable text without fetching or generat
     button.props.onClick();
     assert.equal(requestText, suggestion.text);
     assert.equal(fetches, 0);
+});
+
+test("workflow controls expose only capabilities supplied by the backend", async () => {
+    const { WorkflowControls } = await server.ssrLoadModule("/src/components/WorkflowPanel.tsx");
+    const { renderToStaticMarkup } = await import("react-dom/server");
+    const config = {
+        steps: [{ step_id: "scene_creation", enabled: true }, { step_id: "media_execution", enabled: false }],
+        order: ["scene_creation", "media_execution"], guidance: { count: 3, recent_scene_count: 4 },
+        review: { require_before_media: false, review_new: false, review_conflicts: true, review_uncertain: true },
+        media: { output_format: "image", aspect_ratio: "1:1" }, adaptation: { sensitivity_hints: [] },
+        references: { character_ids: null, place_ids: null, artifact_ids: [] },
+    };
+    const definitions = [{ step_id: "scene_creation", label: "Scene Creation", required: true, available: true },
+        { step_id: "media_execution", label: "Media Execution", required: false, available: false }];
+    const html = (capabilities) => renderToStaticMarkup(WorkflowControls({ config, capabilities, definitions, onChange() {} }));
+    assert.equal(html([]), "");
+    assert.match(html(["guidance_options"]), /Alternatives/);
+    assert.doesNotMatch(html(["guidance_options"]), /Supported steps/);
+    assert.match(html(["step_configuration", "step_ordering"]), /Supported steps/);
+    assert.match(html(["step_configuration"]), /deferred/);
+    assert.doesNotMatch(html(["step_configuration"]), /Reference selections/);
+    assert.match(html(["reference_selection"]), /Reference selections/);
+});
+
+test("workflow choices use authenticated endpoints without running domain actions", async (t) => {
+    const calls = [];
+    t.mock.method(globalThis, "fetch", async (url, options) => { calls.push([url, options.method]); return json({}); });
+    await api.getStoryWorkflow("story");
+    await api.listWorkflowTemplates();
+    await api.listDifficulties();
+    await api.saveStoryWorkflow("story", { difficulty: "normal", workflow_template_id: "webtoon", template_version: 1 });
+    assert.deepEqual(calls, [["/api/stories/story/workflow", undefined], ["/api/workflows/templates", undefined], ["/api/workflows/difficulties", undefined], ["/api/stories/story/workflow", "PUT"]]);
 });

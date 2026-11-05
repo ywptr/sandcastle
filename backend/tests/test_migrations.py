@@ -26,7 +26,7 @@ def config(output=None):
 
 def create_historical_baseline(engine, tables):
     # Current metadata includes M7 columns; older baselines must not pre-create them.
-    Base.metadata.create_all(engine, tables=[table for table in tables if table.name not in {"canon_candidates", "canon_objects", "canon_object_versions", "story_canon_references", "universes", "universe_story_memberships", "universe_canon_references", "narrative_guidance_profiles"}])
+    Base.metadata.create_all(engine, tables=[table for table in tables if table.name not in {"canon_candidates", "canon_objects", "canon_object_versions", "story_canon_references", "universes", "universe_story_memberships", "universe_canon_references", "narrative_guidance_profiles", "story_workflows"}])
     with engine.begin() as connection:
         columns = {column["name"] for column in inspect(connection).get_columns("canon_entries")}
         for name in ("subject_id", "fact_type"):
@@ -52,6 +52,7 @@ class MigrationTests(unittest.TestCase):
         self.assertIn("CREATE TABLE story_canon_references", sql)
         self.assertIn("CREATE TABLE universes", sql)
         self.assertIn("CREATE TABLE narrative_guidance_profiles", sql)
+        self.assertIn("CREATE TABLE story_workflows", sql)
         self.assertIn("CREATE TABLE universe_canon_references", sql)
         self.assertIn("b7e193d2c540", sql)
         self.assertIn("a42d7e90c681", sql)
@@ -268,7 +269,7 @@ class MigrationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="sandcastle-universe-migration-") as directory:
             url = "sqlite:///" + str(Path(directory) / "migration.db")
             engine = create_engine(url)
-            new_tables = {"universes", "universe_story_memberships", "universe_canon_references", "narrative_guidance_profiles"}
+            new_tables = {"universes", "universe_story_memberships", "universe_canon_references", "narrative_guidance_profiles", "story_workflows"}
             Base.metadata.create_all(engine, tables=[table for table in Base.metadata.sorted_tables if table.name not in new_tables])
             with Session(engine) as db:
                 db.add(Story(story_id="s", user_id="alice", title="Legacy"))
@@ -325,7 +326,7 @@ class MigrationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="sandcastle-guidance-migration-") as directory:
             url = "sqlite:///" + str(Path(directory) / "migration.db")
             engine = create_engine(url)
-            Base.metadata.create_all(engine, tables=[table for table in Base.metadata.sorted_tables if table.name != "narrative_guidance_profiles"])
+            Base.metadata.create_all(engine, tables=[table for table in Base.metadata.sorted_tables if table.name not in {"narrative_guidance_profiles", "story_workflows"}])
             with Session(engine) as db:
                 db.add(Story(story_id="legacy", user_id="alice", title="Preserved", premise="A garden", objective="Protect it"))
                 db.add(Universe(universe_id="world", user_id="alice", name="World"))
@@ -357,6 +358,51 @@ class MigrationTests(unittest.TestCase):
                 command.upgrade(config(), "head")
                 command.check(config())
             engine.dispose()
+
+    def test_workflow_migration_round_trip_defaults_and_preservation(self):
+        from sqlalchemy.orm import Session
+        from app.db.models import Universe, UniverseStoryMembership, Scene, CanonEntry, CanonObject, CanonObjectVersion, StoryWorkflow
+        from app.workflows.service import read_workflow, save_workflow
+        from app.workflows.schemas import StoryWorkflowInput
+        with tempfile.TemporaryDirectory(prefix="sandcastle-workflow-migration-") as directory:
+            url = "sqlite:///" + str(Path(directory) / "migration.db")
+            engine = create_engine(url)
+            Base.metadata.create_all(engine, tables=[table for table in Base.metadata.sorted_tables if table.name != "story_workflows"])
+            with Session(engine) as db:
+                db.add(Story(story_id="legacy", user_id="alice", title="Preserved"))
+                db.add(Universe(universe_id="world", user_id="alice", name="World"))
+                db.add(CanonObject(canon_object_id="object", user_id="alice", object_type="place", name="Harbor"))
+                db.flush()
+                db.add(UniverseStoryMembership(story_id="legacy", universe_id="world"))
+                db.add(Scene(scene_id="scene", story_id="legacy", sequence_number=1, content="Original prose"))
+                db.add(CanonEntry(canon_entry_id="fact", story_id="legacy", type="world", key="rule", value="Preserved fact"))
+                db.add(CanonObjectVersion(canon_version_id="version", canon_object_id="object", version_number=1,
+                    data={"structure": {"name": "Harbor"}, "facts": [], "visuals": []}))
+                db.commit()
+            with patch.dict(os.environ, {"DATABASE_URL": url}):
+                command.stamp(config(), "e04c8a12b763")
+                command.upgrade(config(), "head")
+                command.check(config())
+                with Session(engine) as db:
+                    self.assertEqual(read_workflow(db, "legacy", "alice")["difficulty"], "easy")
+                    self.assertIsNone(db.get(StoryWorkflow, "legacy"))
+                    save_workflow(db, "legacy", "alice", StoryWorkflowInput(difficulty="normal", workflow_template_id="webtoon"))
+                    self.assertEqual(read_workflow(db, "legacy", "alice")["template_version"], 1)
+                command.downgrade(config(), "e04c8a12b763")
+                self.assertNotIn("story_workflows", inspect(engine).get_table_names())
+                with Session(engine) as db:
+                    self.assertEqual(db.get(Story, "legacy").title, "Preserved")
+                    self.assertEqual(db.get(Scene, "scene").content, "Original prose")
+                    self.assertEqual(db.get(CanonEntry, "fact").value, "Preserved fact")
+                    self.assertEqual(db.get(UniverseStoryMembership, "legacy").universe_id, "world")
+                    self.assertIsNotNone(db.get(CanonObjectVersion, "version"))
+                command.upgrade(config(), "head")
+                command.check(config())
+            engine.dispose()
+        output = io.StringIO()
+        with patch.dict(os.environ, {"DATABASE_URL": "postgresql+psycopg://audit:audit@localhost/audit"}):
+            command.downgrade(config(output), "f15d7b92a640:e04c8a12b763", sql=True)
+        self.assertIn("DROP TABLE story_workflows", output.getvalue())
 
 
 if __name__ == "__main__":

@@ -384,5 +384,43 @@ export function saveGuidanceProfile(storyId: string, profile: GuidanceProfileInp
 }
 
 export function suggestNextScene(storyId: string) {
-    return write<{ story_id: string; suggestions: NextSceneSuggestion[] }>(`/stories/${storyId}/guidance/next-scene`, "POST", {});
+    return write<{ story_id: string; suggestions: NextSceneSuggestion[] }>(`/stories/${storyId}/workflow/steps/narrative_guidance`, "POST", {});
+}
+
+export interface WorkflowConfig {
+    steps: { step_id: string; enabled: boolean }[];
+    order: string[];
+    guidance: { count: number; recent_scene_count: number };
+    review: { require_before_media: boolean; review_new: boolean; review_conflicts: boolean; review_uncertain: boolean };
+    media: { aspect_ratio: string; output_format: "image" | "webtoon" };
+    adaptation: { sensitivity_hints: string[] };
+    references: { character_ids: string[] | null; place_ids: string[] | null; artifact_ids: string[] };
+}
+export interface WorkflowTemplate {
+    workflow_template_id: string; version: number; name: string; description: string;
+    difficulty_minimum: string; configuration: WorkflowConfig;
+}
+export interface Difficulty { id: string; label: string; capabilities: string[] }
+export interface StoryWorkflow {
+    story_id: string; difficulty: string; workflow_template_id: string; template_version: number;
+    template_name: string; configuration: WorkflowConfig; capabilities: string[];
+    step_definitions: { step_id: string; label: string; required: boolean; available: boolean; dependencies: string[] }[];
+}
+export function getStoryWorkflow(storyId: string) { return request<StoryWorkflow>(`/stories/${storyId}/workflow`); }
+export function listWorkflowTemplates() { return request<WorkflowTemplate[]>("/workflows/templates"); }
+export function listDifficulties() { return request<Difficulty[]>("/workflows/difficulties"); }
+export function saveStoryWorkflow(storyId: string, selection: Pick<StoryWorkflow, "difficulty" | "workflow_template_id" | "template_version" | "configuration">) {
+    return request<StoryWorkflow>(`/stories/${storyId}/workflow`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(selection) });
+}
+export function workflowStep<T>(storyId: string, stepId: string, sceneId?: string) {
+    return write<T>(`/stories/${storyId}/workflow/steps/${stepId}`, "POST", { scene_id: sceneId ?? null });
+}
+
+export interface CanonCandidateSummary {
+    canon_candidate_id: string; status: string; classification: string; key: string; value: string; reasoning: string;
+    evidence: string; subject_name: string | null; subject_id: string | null;
+}
+export function reviewCanonCandidate(storyId: string, candidateId: string, approved: boolean, replace: boolean, uncertain: boolean) {
+    return write<unknown>(`/stories/${storyId}/canon/candidates/${candidateId}/${approved ? "approve" : "reject"}`, "POST",
+        approved ? { replace_conflicts: replace, accept_uncertain: uncertain } : {});
 }
