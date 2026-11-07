@@ -1,12 +1,18 @@
 # Local HTTPS development
 
-Run the FastAPI backend on HTTP port 8000 and Vite with `npm run dev`.
-The browser opens `https://192.168.0.99:5173`; Vite uses the existing mkcert
+Run the FastAPI backend on HTTP port 8012 and Vite with `npm run dev`.
+From `backend/`, start the API with:
+
+```sh
+.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8012 --reload
+```
+
+The browser opens `https://192.168.0.99:5182`; Vite uses the existing mkcert
 certificate/key in `/home/user/certs/sandcastle/`.
 
 Development API and login URLs are always relative to `/api`, even if an old
 `VITE_API_BASE_URL` points at an HTTP backend. Vite proxies `/api/*` to
-`http://127.0.0.1:8000/api/*` without rewriting the path or query string. Methods,
+`http://127.0.0.1:8012/api/*` without rewriting the path or query string. Methods,
 request cookies, and response Set-Cookie headers pass through; forwarded headers
 preserve the browser-facing scheme. FastAPI owns `/api/auth/callback`.
 
@@ -17,8 +23,8 @@ Use these **local** settings (do not change production configuration):
 VITE_API_BASE_URL=/api
 
 # backend/.env
-SANDCASTLE_AUTH_CALLBACK_URL=https://192.168.0.99:5173/api/auth/callback
-SANDCASTLE_WEB_URL=https://192.168.0.99:5173
+SANDCASTLE_AUTH_CALLBACK_URL=https://192.168.0.99:5182/api/auth/callback
+SANDCASTLE_WEB_URL=https://192.168.0.99:5182
 SANDCASTLE_COOKIE_SECURE=true
 ```
 

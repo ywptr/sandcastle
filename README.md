@@ -8,6 +8,11 @@ maintaining, and generating from a coherent story canon.
 - `backend/` — FastAPI, SQLAlchemy, Alembic
 - `frontend/` — React, TypeScript, Vite
 
+For native development on `5480-deb13`, follow the
+[dedicated development database guide](backend/DEVELOPMENT.md). Local Sandcastle
+uses its own `sandcastle_dev` PostgreSQL database and role, separate from cloud
+production and preview environments.
+
 # Sandcastle V0 — Story-to-Comic
 
 ## 1. Product Goal

@@ -6,7 +6,7 @@ export default defineConfig(({ command }) => ({
     plugins: [react()],
     server: {
         host: "192.168.0.99",
-        port: 5173,
+        port: 5182,
         strictPort: true,
         // Build does not need access to this machine's local development certificates.
         https: command === "serve" ? {
@@ -15,7 +15,7 @@ export default defineConfig(({ command }) => ({
         } : undefined,
         proxy: {
             "/api": {
-                target: "http://127.0.0.1:8000",
+                target: "http://127.0.0.1:8012",
                 changeOrigin: true,
                 xfwd: true,
             },

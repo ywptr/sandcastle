@@ -2,12 +2,16 @@
 
 Use Python 3.12+ and run commands from `backend/`:
 
+Follow [native development database setup](DEVELOPMENT.md) before migrations.
+Local development uses only `sandcastle_dev` on `5480-deb13`, separate from
+cloud production and preview configuration.
+
 ```sh
 python -m venv .venv
 . .venv/bin/activate
 python -m pip install -e .
 alembic upgrade head
-uvicorn app.main:app --reload
+uvicorn app.main:app --host 127.0.0.1 --port 8012 --reload
 ```
 
 Set `DATABASE_URL` to a PostgreSQL URL and configure the IS variables listed in
@@ -17,9 +21,14 @@ browser host for the GUI `/api` rewrite and authentication callback in productio
 For local HTTPS development, use the Vite `/api` proxy rather than an absolute
 HTTP API origin. See [the local HTTPS setup](../frontend/README.md#local-https-development)
 for the callback, return URL, and Secure-cookie settings. FastAPI remains HTTP
-on port 8000; IS configuration is managed separately.
+on port 8012; IS configuration is managed separately.
 
 ## Structured authoring
+
+M11A tenant context is blocked on an implemented IS/Nexus consumer contract.
+See [the tenant contract inspection and handoff](app/auth/M11A.md) for verified
+upstream capabilities, session/revocation limits, and deferred Story migration.
+Authenticated context currently has no `tenant_id`; Stories remain user-owned.
 
 All routes below are prefixed with `/api` and require a valid Sandcastle session
 established through IS. Access to another user's Story returns 404.
