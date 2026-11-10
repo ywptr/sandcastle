@@ -83,6 +83,9 @@ class MediaContext(InputModel):
     source_artifact_id: Name | None = None
     adaptation_id: str | None = None
     adapted_shot_sequences: list[int] = Field(default_factory=list)
+    production_format: Literal["webtoon", "short_drama", "story_reel"] | None = None
+    production_beat_number: int | None = Field(default=None, ge=1, le=24)
+    estimated_duration_seconds: int | None = Field(default=None, ge=1, le=30)
 
 
 class MediaRequest(InputModel):

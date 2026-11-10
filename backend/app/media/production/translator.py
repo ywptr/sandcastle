@@ -1,0 +1,27 @@
+from dataclasses import dataclass, field
+from typing import Protocol
+from app.media.production.schemas import ContinuityContext, ProductionProposal, TargetFormat
+from app.stories.scene_schemas import SceneResponse
+
+
+@dataclass(frozen=True)
+class NarrativeMediaContext:
+    story_id: str
+    scene: SceneResponse
+    continuity: ContinuityContext
+    target_format: TargetFormat
+    workflow: dict
+    source_digest: str
+    context_digest: str
+    instruction: str | None = None
+    # Future typed Creative Direction can be added here without changing adapters.
+    creative_direction: dict = field(default_factory=dict)
+
+    def narrative_data(self):
+        return {"story_id": self.story_id, "scene": self.scene.model_dump(mode="json"),
+                "continuity": self.continuity.model_dump(mode="json"), "target_format": self.target_format,
+                "workflow": self.workflow, "instruction": self.instruction, "creative_direction": self.creative_direction}
+
+
+class NarrativeMediaTranslator(Protocol):
+    async def translate(self, context: NarrativeMediaContext) -> ProductionProposal: ...

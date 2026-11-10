@@ -184,3 +184,22 @@ are owner-checked during approval and remain in immutable request snapshots.
 Story-scoped Artifact listing now includes contextual bindings as well as origin.
 The IG adapter rejects these unresolved local inputs rather than dropping them.
 Refinement preview is not an M4B execution path; no IG blocker is changed here.
+
+## SC#0001 production-plan handoff
+
+[Semantic production plans](production/README.md) now compile Webtoon, Short Drama
+and Story Reel interpretations into M3 MediaPlan/MediaRequest manifests. Approved
+plan/manifest snapshots are persisted separately with immutable revisions. SC#0001
+never calls `MediaExecutionClient`, creates an attempt, or contacts IG.
+
+M4B's four-panel/image execution schema is unchanged. Future M16 must deliberately
+bridge variable production units/video results into that durable execution boundary,
+authorize IG caller/actor/tenant and reference access, and validate runtime
+capabilities. It must consume the stored reviewed manifest rather than translating
+narrative again. New optional MediaContext production-format/beat/timing fields
+carry semantic intent without provider-native payloads.
+
+For media generated through IG, IG owns bytes/storage; Sandcastle stores semantic
+references and associations, including real external Artifact IDs and approved
+plan/revision provenance where supported. No default IG Blob → Sandcastle Blob
+copy is permitted merely for display or association. SC#0001 adds no media storage.

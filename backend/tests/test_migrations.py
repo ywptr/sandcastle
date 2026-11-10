@@ -26,7 +26,7 @@ def config(output=None):
 
 def create_historical_baseline(engine, tables):
     # Current metadata includes M7 columns; older baselines must not pre-create them.
-    Base.metadata.create_all(engine, tables=[table for table in tables if table.name not in {"canon_candidates", "canon_objects", "canon_object_versions", "story_canon_references", "universes", "universe_story_memberships", "universe_canon_references", "narrative_guidance_profiles", "story_workflows"}])
+    Base.metadata.create_all(engine, tables=[table for table in tables if table.name not in {"canon_candidates", "canon_objects", "canon_object_versions", "story_canon_references", "universes", "universe_story_memberships", "universe_canon_references", "narrative_guidance_profiles", "story_workflows", "llm_provider_configs", "llm_role_bindings", "approved_media_adaptations", "creative_direction_snapshots"}])
     with engine.begin() as connection:
         columns = {column["name"] for column in inspect(connection).get_columns("canon_entries")}
         for name in ("subject_id", "fact_type"):
@@ -287,7 +287,7 @@ class MigrationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="sandcastle-universe-migration-") as directory:
             url = "sqlite:///" + str(Path(directory) / "migration.db")
             engine = create_engine(url)
-            new_tables = {"universes", "universe_story_memberships", "universe_canon_references", "narrative_guidance_profiles", "story_workflows"}
+            new_tables = {"universes", "universe_story_memberships", "universe_canon_references", "narrative_guidance_profiles", "story_workflows", "llm_provider_configs", "llm_role_bindings", "approved_media_adaptations", "creative_direction_snapshots"}
             Base.metadata.create_all(engine, tables=[table for table in Base.metadata.sorted_tables if table.name not in new_tables])
             with Session(engine) as db:
                 db.add(Story(story_id="s", user_id="alice", title="Legacy"))
@@ -344,7 +344,7 @@ class MigrationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="sandcastle-guidance-migration-") as directory:
             url = "sqlite:///" + str(Path(directory) / "migration.db")
             engine = create_engine(url)
-            Base.metadata.create_all(engine, tables=[table for table in Base.metadata.sorted_tables if table.name not in {"narrative_guidance_profiles", "story_workflows"}])
+            Base.metadata.create_all(engine, tables=[table for table in Base.metadata.sorted_tables if table.name not in {"narrative_guidance_profiles", "story_workflows", "llm_provider_configs", "llm_role_bindings", "approved_media_adaptations", "creative_direction_snapshots"}])
             with Session(engine) as db:
                 db.add(Story(story_id="legacy", user_id="alice", title="Preserved", premise="A garden", objective="Protect it"))
                 db.add(Universe(universe_id="world", user_id="alice", name="World"))
@@ -385,7 +385,7 @@ class MigrationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="sandcastle-workflow-migration-") as directory:
             url = "sqlite:///" + str(Path(directory) / "migration.db")
             engine = create_engine(url)
-            Base.metadata.create_all(engine, tables=[table for table in Base.metadata.sorted_tables if table.name != "story_workflows"])
+            Base.metadata.create_all(engine, tables=[table for table in Base.metadata.sorted_tables if table.name not in {"story_workflows", "llm_provider_configs", "llm_role_bindings", "approved_media_adaptations", "creative_direction_snapshots"}])
             with Session(engine) as db:
                 db.add(Story(story_id="legacy", user_id="alice", title="Preserved"))
                 db.add(Universe(universe_id="world", user_id="alice", name="World"))

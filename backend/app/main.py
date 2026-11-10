@@ -71,3 +71,8 @@ def health():
 from app.api.llm_settings import router as llm_settings_router
 app.include_router(llm_settings_router, prefix="/api")
 
+from app.api.production import router as production_router
+app.include_router(production_router, prefix="/api")
+
+from app.api.creative_direction import router as creative_direction_router
+app.include_router(creative_direction_router, prefix="/api")

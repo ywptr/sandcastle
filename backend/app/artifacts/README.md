@@ -205,3 +205,19 @@ IG authentication/execution blockers are intentionally out of scope. No IG code
 is modified. M5 video remains deferred. M7 Canon intelligence, M8 reusable Canon,
 storage infrastructure, automatic lineage creation from refinement results, UI,
 and live execution are deliberately deferred.
+
+## Production-plan references and IG artifact authority (SC#0001)
+
+**Generated media through IG: IG owns bytes/storage. Sandcastle stores semantic
+references and associations.** IG remains the authoritative media artifact store
+for IG-generated output. Sandcastle must not create duplicate persistent copies
+merely for display or association. Any future portability/offline exception needs
+an explicit product/architecture decision.
+
+[Production plans](../media/production/README.md) select owner-authorized local
+Artifact IDs and binding roles through the existing resolver. Plans and manifests
+contain identifiers, not retrieval/storage locators or media bytes. Planning never
+reads/copies content or guesses an IG Artifact ID. Existing Artifact metadata,
+`external_artifact_id`, bindings and lineage remain intact. Future generated output
+association should retain IG identity plus the approved plan/revision; it should
+not implement IG Blob → Sandcastle Blob duplication.

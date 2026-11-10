@@ -24,10 +24,11 @@ function App() {
                 if (!active) return;
                 setError(null);
                 setStories(result);
+                setHome(!result.length);
                 setSelectedStoryId(result[0]?.story_id ?? null);
-            } catch (failure) {
+            } catch {
                 if (active) {
-                    setError(failure instanceof Error ? failure.message : "Could not load Sandcastle.");
+                    setError("app.error");
                 }
             } finally {
                 if (active) setLoading(false);
