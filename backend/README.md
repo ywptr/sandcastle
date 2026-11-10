@@ -35,7 +35,7 @@ established through IS. Access to another user's Story returns 404.
 
 | Resource | Routes | Editable fields |
 | --- | --- | --- |
-| Story | `POST /stories`, `GET /stories`, `GET/PATCH /stories/{story_id}` | title, premise, objective |
+| Story | `POST /stories`, `GET /stories`, `GET/PATCH /stories/{story_id}` | title, premise, objective, language, primary_genre, secondary_genres |
 | Character | `GET/POST /stories/{story_id}/characters`, `PATCH .../characters/{character_id}` | name, description, appearance, outfit, personality |
 | Place | `GET/POST /stories/{story_id}/places`, `PATCH .../places/{place_id}` | name, description, appearance, atmosphere |
 | Canon | `GET/POST /stories/{story_id}/canon`, `PATCH .../canon/{entry_id}` | type, key, value; approved/superseded status on update |
@@ -194,3 +194,18 @@ control capability disclosure independently of subscriptions. Explicit workflow
 actions reuse existing Canon, guidance and adaptation services; no graph runner
 or IG execution is added. See [Workflows](app/workflows/README.md) and migration
 `f15d7b92a640`.
+
+### M12A — Import Story analysis
+
+Authenticated `POST /api/stories/import/analyze` interprets pasted summaries,
+drafts or notes into bounded, evidence-backed proposals without database writes.
+It requires an optional configured text provider and adds no schema migration.
+See [Import analysis](app/story_import/README.md) for contracts, limits and M12B
+review boundaries. An ImportProposal is not Canon and is not a Story until the
+user accepts it in a later persistence workflow.
+
+### M13 — Story language and genre
+
+[Persistent Story metadata](app/stories/README.md) documents shared language/genre
+validation, PATCH semantics, legacy defaults and generation/guidance behavior.
+Apply `7c2e91a4b830` only to verified development `sandcastle_dev`.

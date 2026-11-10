@@ -133,3 +133,6 @@ routing; lint/build cover the workspace integration. No live provider is require
 Custom executable nodes, plugins, marketplace/team templates, a graph runner,
 LangGraph/n8n, subscription gating, Axtor policy nodes, IG execution and video are
 future work. M10 does not begin M11 or deploy anything.
+
+M13 narrative-guidance actions receive current [Story language/genre](../stories/README.md)
+through the shared guidance service; templates and selection behavior are unchanged.

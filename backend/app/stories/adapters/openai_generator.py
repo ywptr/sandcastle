@@ -1,5 +1,6 @@
 import json
 import os
+from app.stories.metadata import creative_constraints
 
 from openai import AsyncOpenAI
 
@@ -59,6 +60,7 @@ USER REQUEST
 {context.request}
 
 Requirements:
+{chr(10).join(creative_constraints(context.language, context.primary_genre, context.secondary_genres))}
 - Preserve established canon.
 - Continue naturally from earlier scenes.
 - Do not contradict known facts.

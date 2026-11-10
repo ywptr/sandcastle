@@ -89,6 +89,7 @@ async def generate_scene(
 
     context = SceneGenerationContext(
         title=story.title,
+        language=story.language, primary_genre=story.primary_genre, secondary_genres=list(story.secondary_genres),
         premise=story.premise,
         objective=story.objective,
         canon=[

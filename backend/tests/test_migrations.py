@@ -34,6 +34,20 @@ def create_historical_baseline(engine, tables):
                 connection.exec_driver_sql(f"ALTER TABLE canon_entries DROP COLUMN {name}")
 
 
+def upgrade_fixture_to_head():
+    # Historical fixtures use current metadata; remove synthetic M13 columns
+    # before exercising the real migration. No production connection is used.
+    engine = create_engine(os.environ["DATABASE_URL"])
+    assert engine.dialect.name == "sqlite", "Historical fixture helper is SQLite-only"
+    with engine.begin() as connection:
+        columns = {column["name"] for column in inspect(connection).get_columns("stories")}
+        for name in ("language", "primary_genre", "secondary_genres"):
+            if name in columns:
+                connection.exec_driver_sql(f"ALTER TABLE stories DROP COLUMN {name}")
+    engine.dispose()
+    command.upgrade(config(), "head")
+
+
 class MigrationTests(unittest.TestCase):
     def test_postgres_full_history_sql(self):
         output = io.StringIO()
@@ -72,7 +86,7 @@ class MigrationTests(unittest.TestCase):
                 connection.execute(Story.__table__.insert().values(story_id="existing", user_id="alice", title="Preserved"))
             with patch.dict(os.environ, {"DATABASE_URL": url}):
                 command.stamp(config(), "e5a5b285762e")
-                command.upgrade(config(), "head")
+                upgrade_fixture_to_head()
                 self.assertIn("characters", inspect(engine).get_table_names())
                 self.assertIn("places", inspect(engine).get_table_names())
                 self.assertEqual(inspect(engine).get_foreign_keys("characters")[0]["referred_table"], "stories")
@@ -94,7 +108,7 @@ class MigrationTests(unittest.TestCase):
             create_historical_baseline(engine, baseline)
             with patch.dict(os.environ, {"DATABASE_URL": url}):
                 command.stamp(config(), "6b2c8f10a4d9")
-                command.upgrade(config(), "head")
+                upgrade_fixture_to_head()
                 tables = inspect(engine).get_table_names()
                 self.assertIn("media_executions", tables)
                 self.assertIn("artifacts", tables)
@@ -137,7 +151,7 @@ class MigrationTests(unittest.TestCase):
                         execution_id="execution", external_reference="external-image",
                         retrieval_reference="https://media.example.test/image", source="generated", media_type="image",
                     ))
-                command.upgrade(config(), "head")
+                upgrade_fixture_to_head()
                 command.check(config())
                 with Session(engine) as db:
                     artifact = db.get(Artifact, "generated")
@@ -156,7 +170,11 @@ class MigrationTests(unittest.TestCase):
                 self.assertIn("reference_bindings", inspect(engine).get_table_names())
                 with Session(engine) as db:
                     self.assertIsNotNone(db.get(Artifact, registered_id))
-                    delete_binding(db, "story", binding_id, "alice")
+                    # The failed multi-revision downgrade has already removed
+                    # M13 columns on SQLite; clean this fixture without current
+                    # Story services querying that historical schema.
+                    from app.db.models import ReferenceBinding
+                    db.delete(db.get(ReferenceBinding, binding_id))
                     db.delete(db.get(Artifact, registered_id))
                     db.commit()
                 command.downgrade(config(), "8f31c2d9a670")
@@ -164,7 +182,7 @@ class MigrationTests(unittest.TestCase):
                 self.assertNotIn("display_name", [column["name"] for column in inspect(engine).get_columns("artifacts")])
                 with engine.connect() as connection:
                     self.assertEqual(connection.scalar(select(Artifact.artifact_id).where(Artifact.artifact_id == "generated")), "generated")
-                command.upgrade(config(), "head")
+                upgrade_fixture_to_head()
                 command.check(config())
             engine.dispose()
 
@@ -184,7 +202,7 @@ class MigrationTests(unittest.TestCase):
                     canon_entry_id="legacy", story_id="story", type="world", key="gravity", value="Normal gravity", status="approved"))
             with patch.dict(os.environ, {"DATABASE_URL": url}):
                 command.stamp(config(), "a42d7e90c681")
-                command.upgrade(config(), "head")
+                upgrade_fixture_to_head()
                 command.check(config())
                 with Session(engine) as db:
                     self.assertIsNone(db.get(CanonEntry, "legacy").subject_id)
@@ -207,7 +225,7 @@ class MigrationTests(unittest.TestCase):
                 self.assertNotIn("subject_id", [column["name"] for column in inspect(engine).get_columns("canon_entries")])
                 with engine.connect() as connection:
                     self.assertEqual(connection.scalar(select(CanonEntry.value).where(CanonEntry.canon_entry_id == "legacy")), "Normal gravity")
-                command.upgrade(config(), "head")
+                upgrade_fixture_to_head()
                 command.check(config())
             engine.dispose()
 
@@ -244,7 +262,7 @@ class MigrationTests(unittest.TestCase):
                     binding = create_binding(db, "s", "alice", ReferenceBindingCreate(
                         artifact_id=artifact.artifact_id, target_type="character", target_id="c", role="character_identity"))
                     binding_id = binding.reference_id
-                command.upgrade(config(), "head")
+                upgrade_fixture_to_head()
                 command.check(config())
                 with Session(engine) as db:
                     self.assertEqual(db.get(Character, "c").name, "Mara")
@@ -252,7 +270,7 @@ class MigrationTests(unittest.TestCase):
                     self.assertEqual(db.get(CanonCandidate, candidate_id).subject_id, "c")
                     self.assertEqual(db.get(ReferenceBinding, binding_id).target_id, "c")
                 command.downgrade(config(), "b7e193d2c540")
-                command.upgrade(config(), "head")
+                upgrade_fixture_to_head()
                 command.check(config())
                 with Session(engine) as db:
                     ref = promote(db, "s", "alice", "character", "c")
@@ -292,7 +310,7 @@ class MigrationTests(unittest.TestCase):
                 db.commit()
             with patch.dict(os.environ, {"DATABASE_URL": url}):
                 command.stamp(config(), "c81f24a709de")
-                command.upgrade(config(), "head")
+                upgrade_fixture_to_head()
                 command.check(config())
                 with Session(engine) as db:
                     self.assertEqual(db.get(Character, "c").name, "Mara")
@@ -305,7 +323,7 @@ class MigrationTests(unittest.TestCase):
                     self.assertIsNotNone(db.get(Artifact, "art"))
                 command.downgrade(config(), "c81f24a709de")
                 self.assertNotIn("universes", inspect(engine).get_table_names())
-                command.upgrade(config(), "head")
+                upgrade_fixture_to_head()
                 command.check(config())
                 from app.universes.service import create_universe
                 with Session(engine) as db:
@@ -339,7 +357,7 @@ class MigrationTests(unittest.TestCase):
                 db.commit()
             with patch.dict(os.environ, {"DATABASE_URL": url}):
                 command.stamp(config(), "d93b71c602fa")
-                command.upgrade(config(), "head")
+                upgrade_fixture_to_head()
                 command.check(config())
                 with Session(engine) as db:
                     profile = get_profile(db, "legacy", "alice")
@@ -351,11 +369,11 @@ class MigrationTests(unittest.TestCase):
                 command.downgrade(config(), "d93b71c602fa")
                 self.assertNotIn("narrative_guidance_profiles", inspect(engine).get_table_names())
                 with Session(engine) as db:
-                    self.assertEqual(db.get(Story, "legacy").title, "Preserved")
+                    self.assertEqual(db.scalar(select(Story.title).where(Story.story_id == "legacy")), "Preserved")
                     self.assertEqual(db.get(Scene, "scene").content, "Original prose")
                     self.assertEqual(db.get(UniverseStoryMembership, "legacy").universe_id, "world")
                     self.assertIsNotNone(db.get(CanonObjectVersion, "version"))
-                command.upgrade(config(), "head")
+                upgrade_fixture_to_head()
                 command.check(config())
             engine.dispose()
 
@@ -381,7 +399,7 @@ class MigrationTests(unittest.TestCase):
                 db.commit()
             with patch.dict(os.environ, {"DATABASE_URL": url}):
                 command.stamp(config(), "e04c8a12b763")
-                command.upgrade(config(), "head")
+                upgrade_fixture_to_head()
                 command.check(config())
                 with Session(engine) as db:
                     self.assertEqual(read_workflow(db, "legacy", "alice")["difficulty"], "easy")
@@ -391,12 +409,12 @@ class MigrationTests(unittest.TestCase):
                 command.downgrade(config(), "e04c8a12b763")
                 self.assertNotIn("story_workflows", inspect(engine).get_table_names())
                 with Session(engine) as db:
-                    self.assertEqual(db.get(Story, "legacy").title, "Preserved")
+                    self.assertEqual(db.scalar(select(Story.title).where(Story.story_id == "legacy")), "Preserved")
                     self.assertEqual(db.get(Scene, "scene").content, "Original prose")
                     self.assertEqual(db.get(CanonEntry, "fact").value, "Preserved fact")
                     self.assertEqual(db.get(UniverseStoryMembership, "legacy").universe_id, "world")
                     self.assertIsNotNone(db.get(CanonObjectVersion, "version"))
-                command.upgrade(config(), "head")
+                upgrade_fixture_to_head()
                 command.check(config())
             engine.dispose()
         output = io.StringIO()

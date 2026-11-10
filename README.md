@@ -790,3 +790,6 @@ Would you like to:
 ```
 
 This is where Sandcastle begins moving from a consistency-guided generation system toward the full consistency-management product.
+
+M13 persists [Story language and genre](backend/app/stories/README.md) as project
+metadata for generation and guidance. Genre remains separate from Canon.

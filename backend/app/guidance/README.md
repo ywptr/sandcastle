@@ -101,3 +101,6 @@ M9C will reuse the profile for media adaptation; no adaptation or shot planning
 is implemented here. M10 will expose guidance through workflow/difficulty UX.
 No public ratings, recommendation ML, Axtor expansion, IG, video, timelines,
 Canon merging or deployment is included.
+
+M13 adds [persistent Story language/genre context](../stories/README.md) to
+guidance, including localized deterministic scaffolds; it never translates Canon.

@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Protocol
 from app.guidance.schemas import GuidanceProfileInput, Suggestion
 
@@ -16,6 +16,9 @@ class NarrativeGuidanceContext:
     feedback: dict | None
     additional_instruction: str | None
     constraints: tuple[str, ...]
+    language: str | None = None
+    primary_genre: str | None = None
+    secondary_genres: list[str] = field(default_factory=list)
 
 
 class NarrativeSuggestionGenerator(Protocol):
@@ -25,6 +28,11 @@ class NarrativeSuggestionGenerator(Protocol):
 class DeterministicSuggestionGenerator:
     """Conservative planning scaffolds, not a claim to understand arbitrary prose."""
     async def suggest(self, context: NarrativeGuidanceContext, *, count: int) -> list[Suggestion]:
+        if context.language not in (None, "und", "en"):
+            from app.guidance.localized import localized_choices
+            choices = localized_choices(context)
+            return [Suggestion(id=str(i + 1), title=title, text=text)
+                    for i, (title, text) in enumerate(choices[:count])]
         if context.profile.audience == "child":
             choices = [
                 ("One small step", "Let a character try one small, safe step toward the story's goal. Use simple words and a gentle tone."),
@@ -49,6 +57,10 @@ class DeterministicSuggestionGenerator:
                 ("Weigh a consequence", "Explore a consequence of an established choice, respecting known capabilities and leaving uncertain outcomes open."),
                 ("Change the approach", "Let a character reconsider how to pursue the same objective, using existing knowledge rather than new powers or resources."),
             ]
+        if context.primary_genre or context.secondary_genres:
+            genres = ", ".join([context.primary_genre] if context.primary_genre else [])
+            genres = ", ".join(filter(None, [genres, ", ".join(context.secondary_genres)]))
+            choices = [(title, text + f" Tone/pacing: {genres}; preserve Canon.") for title, text in choices]
         # General/mild/mature never imply that explicitness is desirable. No raw
         # source, feedback or free-text instructions are echoed as plot facts.
         return [Suggestion(id=str(index + 1), title=title, text=text) for index, (title, text) in enumerate(choices[:count])]

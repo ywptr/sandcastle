@@ -12,6 +12,9 @@ class SceneGenerationContext:
     request: str
     characters: list[dict] = field(default_factory=list)
     places: list[dict] = field(default_factory=list)
+    language: str | None = None
+    primary_genre: str | None = None
+    secondary_genres: list[str] = field(default_factory=list)
 
 
 class StoryGenerator(Protocol):

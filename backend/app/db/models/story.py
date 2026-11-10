@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import uuid4
 
-from sqlalchemy import DateTime, String, Text
+from sqlalchemy import DateTime, String, Text, JSON
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.database import Base
@@ -36,6 +36,10 @@ class Story(Base):
         Text,
         nullable=True,
     )
+
+    language: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    primary_genre: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    secondary_genres: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list, server_default="[]")
 
     status: Mapped[str] = mapped_column(
         String(30),

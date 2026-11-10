@@ -10,7 +10,7 @@ and roles per application. Sandcastle does not need a PostgreSQL container.
 | Database / owner / login role | `sandcastle_dev` |
 | Driver | SQLAlchemy `postgresql+psycopg` |
 | Backend | Native Uvicorn, HTTP port 8012 |
-| Frontend | Native Vite, HTTPS `192.168.0.99:5182` |
+| Frontend | Native Vite, HTTPS `5480-deb13.lan.com:5182` |
 
 Loopback refers to the host running the native backend. It would refer to a
 container itself if a container were introduced; do not reuse this address for
@@ -101,7 +101,7 @@ PY
 .venv/bin/alembic check
 ```
 
-Current repository head is `f15d7b92a640`. Recheck it before future work.
+Current repository head is `7c2e91a4b830` (M13). Recheck it before future work.
 Stop on unexpected identity, nonlocal URL, unknown schema/history, migration
 failure or drift. Do not edit historical migrations or bypass failures by manual
 table creation. Normal application startup does not run migrations.

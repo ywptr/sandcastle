@@ -277,6 +277,9 @@ def create_story_endpoint(
         title=payload.title,
         premise=payload.premise,
         objective=payload.objective,
+        language=payload.language,
+        primary_genre=payload.primary_genre,
+        secondary_genres=payload.secondary_genres,
     )
 
 

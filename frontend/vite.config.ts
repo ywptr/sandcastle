@@ -6,6 +6,7 @@ export default defineConfig(({ command }) => ({
     plugins: [react()],
     server: {
         host: "192.168.0.99",
+        allowedHosts: ["5480-deb13.lan.com"],
         port: 5182,
         strictPort: true,
         // Build does not need access to this machine's local development certificates.

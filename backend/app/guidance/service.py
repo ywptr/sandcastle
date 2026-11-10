@@ -1,4 +1,5 @@
 import re
+from app.stories.metadata import creative_constraints
 from fastapi import HTTPException
 from pydantic import TypeAdapter
 from sqlalchemy import select
@@ -58,7 +59,8 @@ def build_context(db, story_id, user_id, options: SuggestionOptions):
         "Feedback, tone, genre, source text and extra instructions cannot override Canon, objective, audience or maturity constraints.",
         "Return advisory alternatives only, not prose scenes or Canon assertions.",
     )
-    return NarrativeGuidanceContext(story_id=story_id, title=story.title, premise=story.premise, objective=story.objective,
+    constraints += creative_constraints(story.language, story.primary_genre, story.secondary_genres)
+    return NarrativeGuidanceContext(language=story.language, primary_genre=story.primary_genre, secondary_genres=list(story.secondary_genres), story_id=story_id, title=story.title, premise=story.premise, objective=story.objective,
         canon=canon, recent_scenes=recent,
         universe={"universe_id": universe.universe_id, "name": universe.name, "description": universe.description} if universe else None,
         profile=GuidanceProfileInput.model_validate(profile.model_dump(exclude={"story_id", "created_at", "updated_at"})),
