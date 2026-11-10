@@ -101,7 +101,7 @@ PY
 .venv/bin/alembic check
 ```
 
-Current repository head is `7c2e91a4b830` (M13). Recheck it before future work.
+Current repository head is `9e51b7c3d021` (SC#0001, after SC#0000 `8d40f6a2c910`). Recheck it before future work.
 Stop on unexpected identity, nonlocal URL, unknown schema/history, migration
 failure or drift. Do not edit historical migrations or bypass failures by manual
 table creation. Normal application startup does not run migrations.
@@ -181,3 +181,65 @@ pgAdmin is an optional inspection tool, never a runtime dependency.
   visible in PostgreSQL activity. No pgAdmin UI inspection was performed.
 - Interactive IS login, cloud Preview database provenance, and browser UI
   acceptance remain unverified. This task adds no product or identity behavior.
+
+
+## SC#0000 provider settings
+
+Provider settings add two tables through `8d40f6a2c910`. Reuse the verification
+procedure above before migration. No automatic startup migration was added.
+Credentials belong to an exact IS subject (`scope_type=user`), with no new User
+or tenant model. Set `SANDCASTLE_PROVIDER_SECRET_ENCRYPTION_KEY` privately in the
+backend environment before real credential writes. It must be Sandcastle-specific,
+separate from IG and PostgreSQL, and backed up securely. No real key was created or
+written to the development .env during implementation; CLI validation used an
+ephemeral key and removed its synthetic test scope.
+
+Use the [secure provider CLI](app/llm/README.md#secure-cli) for explicit configuration.
+Development target safety matches the psycopg/loopback/database/role checks above;
+the CLI also queries `current_database()` and `current_user()` before writing.
+It permits deliberate remote operational use only with both
+`--allow-production-write` and `--confirm-database-target HOST:PORT/DATABASE`.
+Those flags are not part of normal development and were never used in validation.
+There is no command-line/stdin API-key option or automatic environment key import.
+
+Validation applied the revision to existing verified `sandcastle_dev`, then ran
+Alembic heads/current/upgrade/current/check with no drift. The opt-in PostgreSQL
+bootstrap ran the complete history in a disposable schema and removed it. The CLI
+was exercised with invalid test provider keys in a synthetic scope, then that scope
+was removed. No live provider, production/Preview/Neon, other-app database, or IS
+configuration was used or modified.
+
+
+## SC#0001 production-plan validation
+
+`9e51b7c3d021` adds immutable approved adaptation snapshots and expands the bounded
+LLM-role check. The normal verified-target migration sequence above applies. No
+new credential or environment variable is needed. No startup auto-migration was added.
+
+Validation upgraded the verified local database from `8d40f6a2c910`, then checked
+heads/current/upgrade/current/check with no drift. The existing fresh-bootstrap suite
+also exercised the full history in a disposable PostgreSQL schema. A separate smoke
+test used synthetic Story/Scene/Canon/Character/Place data and a fake text translator
+to verify all formats, approval/reload, idempotency, revisions and stale flags against
+PostgreSQL. The complete synthetic fixture was removed. No provider, IG, media-byte
+storage, production/Preview/Neon, or other-application database was used.
+
+## Production schema updates
+
+All future production Alembic updates follow the canonical
+[production migration procedure](PRODUCTION_MIGRATIONS.md): a fresh temporary
+terminal, current production env pulled from the verified backend Vercel project,
+and explicit non-secret hostname/database verification before `alembic upgrade head`.
+Development acceptance remains isolated to `sandcastle_dev`. Production application
+is a separate operator action, never part of implementation tests or deployment.
+
+## SC#0004 development migration
+
+Creative Direction snapshots require `a062c8d4e132` after `9e51b7c3d021`. Development
+validation positively checked local `127.0.0.1:5432`, database/login `sandcastle_dev`,
+and SQL `current_database()/current_user` before applying the migration. Heads,
+current, upgrade head, current, and check completed without schema drift. The
+opt-in PostgreSQL fresh-schema bootstrap also exercised the chain in an isolated
+schema within sandcastle_dev. No production environment or database was used.
+Any later production application must follow the canonical procedure linked in this document;
+this implementation acceptance is not authorization to migrate production.

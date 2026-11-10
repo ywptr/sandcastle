@@ -14,3 +14,6 @@ frontend/.env.local
 .DS_Store
 .vercel
 .env*
+
+# Temporary Vercel production migration environment; delete after operator use.
+.env.production.local

@@ -69,3 +69,17 @@ Never place credentials in frontend environment variables.
 - Do not introduce LangGraph or n8n in V0 unless a real workflow requirement appears.
 - Prefer complete vertical slices: model, migration, service, API, frontend, and validation.
 - Treat the repository as source of truth; design notes and README roadmap items may be ahead of implementation.
+
+## Production Alembic operations
+
+Production Alembic updates must use the documented fresh-terminal Vercel
+production-env procedure in [backend/PRODUCTION_MIGRATIONS.md](backend/PRODUCTION_MIGRATIONS.md).
+Require explicit non-secret database-target verification before `alembic upgrade head`.
+This is the default for all future migrations. Never silently migrate production
+as implementation acceptance; validate development changes only in `sandcastle_dev`.
+
+## Beginner experience and language
+
+UI language is independent of Story language. Changing one must never silently
+change the other. Easy mode makes decisions and asks for approval; it does not
+merely hide advanced fields. Keep deeper tools reachable through progressive disclosure.
