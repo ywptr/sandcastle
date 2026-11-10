@@ -6,6 +6,9 @@ export interface Story {
     title: string;
     premise: string | null;
     objective: string | null;
+    language: string | null;
+    primary_genre: string | null;
+    secondary_genres: string[];
     status: string;
     created_at: string;
     updated_at: string;
@@ -13,8 +16,11 @@ export interface Story {
 
 export interface StoryCreateInput {
     title: string;
-    premise?: string;
-    objective?: string;
+    premise?: string | null;
+    objective?: string | null;
+    language?: string | null;
+    primary_genre?: string | null;
+    secondary_genres?: string[];
 }
 
 export interface CanonEntry {
@@ -424,3 +430,19 @@ export function reviewCanonCandidate(storyId: string, candidateId: string, appro
     return write<unknown>(`/stories/${storyId}/canon/candidates/${candidateId}/${approved ? "approve" : "reject"}`, "POST",
         approved ? { replace_conflicts: replace, accept_uncertain: uncertain } : {});
 }
+
+export function listCanonCandidates(storyId: string) {
+    return request<CanonCandidateSummary[]>(`/stories/${storyId}/canon/candidates`);
+}
+export interface Universe { universe_id: string; name: string; description: string }
+export interface UniverseReference { reference_id: string; canon_object_id: string; canon_version_id: string }
+export function listUniverses() { return request<Universe[]>("/universes"); }
+export function listUniverseMembers(id: string) { return request<{ story_id: string }[]>(`/universes/${id}/stories`); }
+export function listUniverseReferences(id: string) { return request<UniverseReference[]>(`/universes/${id}/canon/references`); }
+export function listCanonVersions(id: string) {
+    return request<{ canon_version_id: string; version_number: number; data: Record<string, unknown> }[]>(`/canon/library/${id}/versions`);
+}
+export interface Artifact { artifact_id: string; display_name: string | null; source: string; media_type: string }
+export interface ReferenceBinding { reference_id: string; artifact_id: string; target_type: string; target_id: string; role: string; label: string | null }
+export function listArtifacts(storyId: string) { return request<Artifact[]>(`/artifacts?story_id=${encodeURIComponent(storyId)}`); }
+export function listReferenceBindings(storyId: string) { return request<ReferenceBinding[]>(`/stories/${storyId}/references`); }

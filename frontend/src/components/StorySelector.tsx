@@ -1,213 +1,25 @@
 import { useState } from "react";
+import { createStory, type Story } from "../api/sandcastle";
+import { StoryMetadataForm } from "./StoryMetadataForm";
 
-import {
-    createStory,
-    type Story,
-} from "../api/sandcastle";
-
-
-interface StorySelectorProps {
-    stories: Story[];
-    selectedStoryId: string | null;
-    onSelect: (story: Story) => void;
-    onCreated: (story: Story) => void;
-}
-
-
-export function StorySelector({
-    stories,
-    selectedStoryId,
-    onSelect,
-    onCreated,
-}: StorySelectorProps) {
-    const [saving, setSaving] = useState(false);
-
-    const [creating, setCreating] =
-        useState(false);
-
-    const [title, setTitle] =
-        useState("");
-
-    const [premise, setPremise] =
-        useState("");
-
-    const [objective, setObjective] =
-        useState("");
-
-    const [error, setError] =
-        useState<string | null>(null);
-
-
-    function resetForm() {
-        setTitle("");
-        setPremise("");
-        setObjective("");
-        setError(null);
-    }
-
-
-    function cancelCreate() {
-        resetForm();
-        setCreating(false);
-    }
-
-
-    async function handleCreate() {
-        if (saving) return;
-        const cleanTitle = title.trim();
-
-        if (!cleanTitle) {
-            setError("Title is required.");
-            return;
-        }
-
-        try {
-            setSaving(true);
-            setError(null);
-
-            const story = await createStory({
-                title: cleanTitle,
-                premise:
-                    premise.trim()
-                    || undefined,
-                objective:
-                    objective.trim()
-                    || undefined,
-            });
-
-            onCreated(story);
-
-            resetForm();
-            setCreating(false);
-
-        } catch (error) {
-            setError(
-                error instanceof Error
-                    ? error.message
-                    : "Failed to create story"
-            );
-        } finally {
-            setSaving(false);
-        }
-    }
-
-
-    return (
-        <aside className="story-sidebar">
-
-            <div className="story-sidebar-heading">
-                <h2>Stories</h2>
-
-                <button
-                    className="secondary-button"
-                    onClick={() =>
-                        setCreating(true)
-                    }
-                >
-                    New
-                </button>
-            </div>
-
-
-            <div className="story-list">
-                {stories.map((story) => (
-                    <button
-                        key={story.story_id}
-                        className={
-                            story.story_id
-                            === selectedStoryId
-                                ? "story-list-item active"
-                                : "story-list-item"
-                        }
-                        onClick={() =>
-                            onSelect(story)
-                        }
-                    >
-                        <strong>
-                            {story.title}
-                        </strong>
-
-                        {story.premise && (
-                            <span>
-                                {story.premise}
-                            </span>
-                        )}
-                    </button>
-                ))}
-            </div>
-
-
-            {creating && (
-                <div className="story-create-form">
-
-                    <h3>New story</h3>
-
-                    <label>
-                        <span>Title</span>
-
-                        <input
-                            value={title}
-                            onChange={(event) =>
-                                setTitle(
-                                    event.target.value
-                                )
-                            }
-                        />
-                    </label>
-
-                    <label>
-                        <span>Premise</span>
-
-                        <textarea
-                            value={premise}
-                            onChange={(event) =>
-                                setPremise(
-                                    event.target.value
-                                )
-                            }
-                        />
-                    </label>
-
-                    <label>
-                        <span>Objective</span>
-
-                        <textarea
-                            value={objective}
-                            onChange={(event) =>
-                                setObjective(
-                                    event.target.value
-                                )
-                            }
-                        />
-                    </label>
-
-                    {error && (
-                        <div className="error">
-                            {error}
-                        </div>
-                    )}
-
-                    <div className="story-create-actions">
-                        <button
-                            className="secondary-button"
-                            disabled={saving}
-                            onClick={cancelCreate}
-                        >
-                            Cancel
-                        </button>
-
-                        <button
-                            className="primary-button"
-                            disabled={saving}
-                            onClick={handleCreate}
-                        >
-                            Create
-                        </button>
-                    </div>
-
-                </div>
-            )}
-
-        </aside>
-    );
+export function StorySelector({ stories, selectedStoryId, onSelect, onCreated }: {
+    stories: Story[]; selectedStoryId: string | null; onSelect: (story: Story) => void; onCreated: (story: Story) => void;
+}) {
+    const [creating, setCreating] = useState(false);
+    return <aside className="story-sidebar">
+        <div className="story-sidebar-heading"><div><span className="eyebrow">Your studio</span><h2>Series</h2></div>
+            <button type="button" className="primary-button" onClick={() => setCreating(true)}>+ New series</button></div>
+        <p className="muted">Every world starts with an idea.</p>
+        {creating && <section className="story-create-form"><h3>Start something new</h3><StoryMetadataForm onCancel={() => setCreating(false)} onSave={async (input) => {
+            const story = await createStory(input); onCreated(story); setCreating(false);
+        }} /></section>}
+        {!stories.length && <p className="empty-state">Your first series belongs here. Start with a title; develop the details as you go.</p>}
+        <div className="story-list">{stories.map((story, index) => <button type="button" key={story.story_id}
+            aria-current={story.story_id === selectedStoryId ? "true" : undefined}
+            className={`story-list-item ${story.story_id === selectedStoryId ? "active" : ""}`} onClick={() => onSelect(story)}>
+            <span className="series-cover" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
+            <strong>{story.title}</strong><span>{story.premise || "An unwritten possibility"}</span>
+            <small>{story.status} · {story.primary_genre?.replaceAll("_", " ") || "Story"}{story.language ? ` · ${story.language}` : ""}</small>
+        </button>)}</div>
+    </aside>;
 }

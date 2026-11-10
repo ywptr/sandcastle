@@ -132,3 +132,47 @@ test("workflow choices use authenticated endpoints without running domain action
     await api.saveStoryWorkflow("story", { difficulty: "normal", workflow_template_id: "webtoon", template_version: 1 });
     assert.deepEqual(calls, [["/api/stories/story/workflow", undefined], ["/api/workflows/templates", undefined], ["/api/workflows/difficulties", undefined], ["/api/stories/story/workflow", "PUT"]]);
 });
+
+test("M13 Story metadata preserves explicit nulls and empty secondary genres", async (t) => {
+    const input = { title: "A new beginning", premise: null, objective: null, language: null, primary_genre: null, secondary_genres: [] };
+    const calls = [];
+    t.mock.method(globalThis, "fetch", async (url, options) => {
+        calls.push([url, options.method]);
+        assert.equal(options.credentials, "include");
+        assert.deepEqual(JSON.parse(options.body), input);
+        return json({ story_id: "story", ...input });
+    });
+    assert.equal((await api.createStory(input)).language, null);
+    assert.deepEqual((await api.updateStory("story", input)).secondary_genres, []);
+    assert.deepEqual(calls, [["/api/stories", "POST"], ["/api/stories/story", "PATCH"]]);
+});
+
+test("metadata controls exactly mirror the M13 bounded backend taxonomy", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const source = await readFile(new URL("../../backend/app/stories/metadata.py", import.meta.url), "utf8");
+    const { languages, genres } = await server.ssrLoadModule("/src/api/storyMetadata.ts");
+    const literal = (name) => source.match(new RegExp(name + " = (?:Annotated\\[)?Literal\\[([^\\]]+)\\]"))[1].match(/"([^"]+)"/g).map((s) => JSON.parse(s));
+    assert.deepEqual(Object.keys(languages), literal("Language"));
+    assert.deepEqual(genres, literal("Genre"));
+});
+
+test("candidate, Universe, and artifact inspection use existing authenticated read endpoints", async (t) => {
+    const calls = [];
+    t.mock.method(globalThis, "fetch", async (url, options) => { calls.push(url); assert.equal(options.credentials, "include"); assert.equal(options.method, undefined); return json([]); });
+    await api.listCanonCandidates("story");
+    await api.listUniverses();
+    await api.listUniverseMembers("world");
+    await api.listUniverseReferences("world");
+    await api.listCanonVersions("object");
+    await api.listArtifacts("story");
+    await api.listReferenceBindings("story");
+    assert.deepEqual(calls, ["/api/stories/story/canon/candidates", "/api/universes", "/api/universes/world/stories", "/api/universes/world/canon/references", "/api/canon/library/object/versions", "/api/artifacts?story_id=story", "/api/stories/story/references"]);
+});
+
+test("candidate review sends explicit conflict and uncertainty acceptance only when chosen", async (t) => {
+    const calls = [];
+    t.mock.method(globalThis, "fetch", async (url, options) => { calls.push([url, JSON.parse(options.body)]); return json({}); });
+    await api.reviewCanonCandidate("story", "proposal", true, true, true);
+    await api.reviewCanonCandidate("story", "proposal", false, false, false);
+    assert.deepEqual(calls, [["/api/stories/story/canon/candidates/proposal/approve", { replace_conflicts: true, accept_uncertain: true }], ["/api/stories/story/canon/candidates/proposal/reject", {}]]);
+});

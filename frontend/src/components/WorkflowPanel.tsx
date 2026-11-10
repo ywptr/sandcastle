@@ -51,7 +51,7 @@ export function WorkflowControls({ config, capabilities, definitions, onChange }
     </>;
 }
 
-function CanonReviewItem({ candidate, disabled, onReview }: { candidate: CanonCandidateSummary; disabled: boolean; onReview: (approved: boolean, replace: boolean, uncertain: boolean) => void }) {
+export function CanonReviewItem({ candidate, disabled, onReview }: { candidate: CanonCandidateSummary; disabled: boolean; onReview: (approved: boolean, replace: boolean, uncertain: boolean) => void }) {
     const [replace, setReplace] = useState(false);
     const [uncertain, setUncertain] = useState(false);
     return <li><strong>{candidate.subject_name ?? candidate.subject_id ?? "Story"} · {candidate.key}: {candidate.value}</strong><blockquote>{candidate.evidence}</blockquote><p>{candidate.classification} · {candidate.reasoning}</p>
@@ -122,6 +122,8 @@ export function WorkflowPanel({ workflow, onSaved, sceneId, onDomainChanged }: {
                 const allowed = levels.findIndex((l) => l.id === selected.difficulty_minimum) <= levels.findIndex((l) => l.id === level);
                 choose(level, allowed ? selected : templates.find((t) => t.workflow_template_id === "standard-story" && t.version === 1)!);
             }}>{levels.map((level) => <option key={level.id} value={level.id}>{level.label}</option>)}</select></label>
+            <p className="muted">{templates.find((t) => t.workflow_template_id === draft.workflow_template_id && t.version === draft.template_version)?.description}</p>
+            <details><summary>Available capabilities</summary><ul>{caps.map((cap) => <li key={cap}>{cap.replaceAll("_", " ")}</li>)}</ul></details>
             <p className="muted">Changing difficulty or template resets draft settings to that template's defaults. Save to apply.</p>
             {can("template_selection") && <label>Template<select value={`${draft.workflow_template_id}:${draft.template_version}`} onChange={(e) => choose(draft.difficulty, templates.find((t) => `${t.workflow_template_id}:${t.version}` === e.target.value)!)}>
                 {templates.filter((t) => levels.findIndex((l) => l.id === t.difficulty_minimum) <= levels.findIndex((l) => l.id === draft.difficulty)).map((t) => <option key={`${t.workflow_template_id}:${t.version}`} value={`${t.workflow_template_id}:${t.version}`}>{t.name} · v{t.version}</option>)}

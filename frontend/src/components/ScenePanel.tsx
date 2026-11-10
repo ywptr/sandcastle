@@ -1,93 +1,31 @@
 import { useState } from "react";
-import { createScene, generateScene, updateScene, type Scene, type StoryWorkflow } from "../api/sandcastle";
-import { NarrativeGuidance } from "./NarrativeGuidance";
+import { createScene, updateScene, type Scene } from "../api/sandcastle";
 import { RecordEditor, type EditorField } from "./RecordEditor";
-
 const fields: EditorField[] = [
     { name: "title", label: "Scene title", maxLength: 255 },
     { name: "content", label: "Scene content", required: true, multiline: true },
 ];
-
-interface Props {
-    workflow?: StoryWorkflow;
-    storyId: string;
-    scenes: Scene[];
-    onSaved: (scene: Scene) => void;
-    onGenerated: () => Promise<void>;
-}
-
-export function ScenePanel({ storyId, scenes, onSaved, onGenerated, workflow }: Props) {
+export function ScenePanel({ storyId, scenes, onSaved, selectedId, onSelect }: {
+    storyId: string; scenes: Scene[]; onSaved: (scene: Scene) => void; selectedId: string | null; onSelect: (id: string) => void;
+}) {
     const [editing, setEditing] = useState<string | null>(null);
-    const [request, setRequest] = useState("");
-    const [generating, setGenerating] = useState(false);
-    const [message, setMessage] = useState<string | null>(null);
-    const selected = scenes.find((scene) => scene.scene_id === editing);
-
-    async function generate() {
-        if (!request.trim() || generating) return;
-        setGenerating(true);
-        setMessage(null);
-        try {
-            const result = await generateScene(storyId, request.trim());
-            if (result.scene) {
-                onSaved(result.scene);
-                setRequest("");
-                setMessage("Draft scene created. Review it before making any explicit Canon changes.");
-            } else {
-                setMessage(result.action.decision?.reason ?? "This request requires approval.");
-            }
-            await onGenerated();
-        } catch (failure) {
-            setMessage(failure instanceof Error ? failure.message : "Generation failed. You can create a scene manually.");
-        } finally {
-            setGenerating(false);
-        }
-    }
-
-    return (
-        <section className="panel scenes-panel" id="scenes">
-            <div className="panel-heading">
-                <h2>Scenes <small>({scenes.length})</small></h2>
-                <button className="secondary-button" disabled={editing !== null || generating}
-                    onClick={() => setEditing("new")}>Write a scene</button>
-            </div>
-            <p className="muted">Scenes are narrative drafts. Saving or generating prose never changes Canon automatically.</p>
-            {editing !== null && (
-                <RecordEditor key={editing} fields={fields}
-                    initial={{ title: selected?.title ?? "", content: selected?.content ?? "" }}
-                    submitLabel={editing === "new" ? "Create scene" : "Save scene"}
-                    onCancel={() => setEditing(null)} onSave={async (values) => {
-                        const scene = editing === "new"
-                            ? await createScene(storyId, values.title || null, values.content)
-                            : await updateScene(storyId, editing, values.title || null, values.content);
-                        onSaved(scene);
-                        setEditing(null);
-                    }} />
-            )}
-            {scenes.length === 0 && <p>No scenes yet. Write the first scene to begin.</p>}
-            <div className="scene-list">
-                {scenes.map((scene) => (
-                    <article className="scene" key={scene.scene_id}>
-                        <div className="panel-heading">
-                            <h3>{scene.sequence_number}. {scene.title || "Untitled scene"}</h3>
-                            <button className="secondary-button" disabled={editing !== null || generating}
-                                onClick={() => setEditing(scene.scene_id)}>Edit scene</button>
-                        </div>
-                        <div className="scene-content">{scene.content}</div>
-                    </article>
-                ))}
-            </div>
-            <details className="generation-options">
-                <summary>Optional: generate the next scene</summary>
-                <p className="muted">Uses your saved Story, Characters, Places, approved Canon, and edited previous Scenes. Available when AI writing is enabled.</p>
-                <NarrativeGuidance key={storyId} capabilities={workflow?.capabilities} suggestionsEnabled={workflow?.configuration.steps.find((s) => s.step_id === "narrative_guidance")?.enabled ?? true} storyId={storyId} onSelect={setRequest} disabled={generating || editing !== null} />
-                <label className="generation-request">What should happen next?
-                    <textarea value={request} disabled={generating} onChange={(event) => setRequest(event.target.value)} rows={3} />
-                </label>
-                <button className="primary-button" disabled={generating || editing !== null || !request.trim()}
-                    onClick={generate}>{generating ? "Writing scene…" : "Generate scene"}</button>
-                {message && <p role="status">{message}</p>}
-            </details>
-        </section>
-    );
+    const selected = scenes.find((s) => s.scene_id === selectedId) ?? scenes[0];
+    const editingScene = scenes.find((s) => s.scene_id === editing);
+    return <section className="panel scenes-panel">
+        <div className="panel-heading"><div><span className="eyebrow">Your narrative</span><h2>Scenes <small>{scenes.length}</small></h2></div>
+            <button type="button" className="secondary-button" onClick={() => setEditing("new")}>+ Write a scene</button></div>
+        <p className="muted">Ordered story scenes form your narrative. Episodes are a future output grouping. Saving prose never changes Canon.</p>
+        <nav className="scene-picker" aria-label="Ordered scenes">{scenes.map((scene) => <button type="button" key={scene.scene_id}
+            aria-current={selected?.scene_id === scene.scene_id ? "true" : undefined} onClick={() => { onSelect(scene.scene_id); setEditing(null); }}>
+            <small>{String(scene.sequence_number).padStart(2, "0")}</small> {scene.title || "Untitled scene"}</button>)}</nav>
+        {editing ? <RecordEditor key={editing} fields={fields} initial={{ title: editingScene?.title ?? "", content: editingScene?.content ?? "" }}
+            submitLabel={editing === "new" ? "Create scene" : "Save scene"} onCancel={() => setEditing(null)} onSave={async (values) => {
+                const saved = editing === "new" ? await createScene(storyId, values.title || null, values.content)
+                    : await updateScene(storyId, editing, values.title || null, values.content);
+                onSaved(saved); onSelect(saved.scene_id); setEditing(null);
+            }} /> : selected ? <article className="scene"><div className="panel-heading"><h3>{selected.sequence_number}. {selected.title || "Untitled scene"}</h3>
+                <button type="button" className="secondary-button" onClick={() => setEditing(selected.scene_id)}>Edit scene</button></div>
+                <p className="eyebrow">{selected.status}</p><div className="scene-content">{selected.content}</div></article>
+            : <div className="empty-state"><h3>A world waiting to unfold</h3><p>Write your opening scene, or describe it to the assistant.</p></div>}
+    </section>;
 }
