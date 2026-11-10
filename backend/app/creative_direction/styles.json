@@ -1,0 +1,306 @@
+[
+  {
+    "id": "korean_romance_drama",
+    "version": "1.0.0",
+    "name": {
+      "en": "Korean Romance Drama",
+      "id": "Drama Romantis Korea"
+    },
+    "region": "east_asia",
+    "summary": {
+      "en": "Slow-burn relationships and gradual emotional reveals.",
+      "id": "Hubungan yang berkembang perlahan dan pengungkapan emosi bertahap."
+    },
+    "supported_formats": [
+      "story",
+      "webtoon",
+      "short_drama",
+      "story_reel"
+    ],
+    "narrative_guidance": "Develop mutual agency and gradual relationship tension.",
+    "dialogue_guidance": "Use subtext, pauses and emotionally meaningful exchanges.",
+    "image_guidance": "Balance intimate reactions with clear establishing views.",
+    "video_guidance": "Use measured movement and reaction holds.",
+    "constraints": [
+      "Preserve Canon and character/place identities.",
+      "Never infer ethnicity, religion, nationality, language or cultural setting from style.",
+      "Do not copy protected works or imitate named living artists.",
+      "Rating is classification, not permission for prohibited content."
+    ],
+    "status": "planning_preview",
+    "localized_guidance": {
+      "id": {
+        "narrative": "Kembangkan kedekatan secara bertahap melalui pilihan kedua karakter.",
+        "dialogue": "Gunakan makna tersirat, jeda, dan percakapan yang berarti.",
+        "image": "Seimbangkan reaksi dekat dengan gambaran lokasi yang jelas.",
+        "video": "Gunakan gerak kamera terukur dan jeda pada reaksi."
+      }
+    }
+  },
+  {
+    "id": "japanese_anime_inspired",
+    "version": "1.0.0",
+    "name": {
+      "en": "Japanese Anime Inspired",
+      "id": "Terinspirasi Anime Jepang"
+    },
+    "region": "east_asia",
+    "summary": {
+      "en": "Expressive characters and purposeful character arcs.",
+      "id": "Karakter ekspresif dengan perkembangan yang terarah."
+    },
+    "supported_formats": [
+      "story",
+      "webtoon",
+      "short_drama",
+      "story_reel"
+    ],
+    "narrative_guidance": "Build clear character goals, setbacks and earned growth.",
+    "dialogue_guidance": "Use distinct voices and purposeful internal reflection.",
+    "image_guidance": "Use expressive poses and readable silhouettes; respect separate visual style.",
+    "video_guidance": "Use symbolic inserts and distinct dramatic beats.",
+    "constraints": [
+      "Preserve Canon and character/place identities.",
+      "Never infer ethnicity, religion, nationality, language or cultural setting from style.",
+      "Do not copy protected works or imitate named living artists.",
+      "Rating is classification, not permission for prohibited content."
+    ],
+    "status": "planning_preview",
+    "localized_guidance": {
+      "id": {
+        "narrative": "Bangun tujuan, tantangan, dan perkembangan karakter yang masuk akal.",
+        "dialogue": "Bedakan suara tiap karakter dan gunakan refleksi batin secara terarah.",
+        "image": "Gunakan pose ekspresif dan siluet jelas; tetap ikuti Gaya Visual yang dipilih.",
+        "video": "Gunakan sisipan simbolis dan momen dramatis yang jelas."
+      }
+    }
+  },
+  {
+    "id": "chinese_vertical_drama",
+    "version": "1.0.0",
+    "name": {
+      "en": "Chinese Vertical Drama",
+      "id": "Drama Vertikal Tiongkok"
+    },
+    "region": "east_asia",
+    "summary": {
+      "en": "Immediate hooks, escalating conflict and reversals.",
+      "id": "Pembuka yang memikat, konflik meningkat, dan pembalikan situasi."
+    },
+    "supported_formats": [
+      "story",
+      "webtoon",
+      "short_drama",
+      "story_reel"
+    ],
+    "narrative_guidance": "Open on a meaningful conflict and end on an earned reversal.",
+    "dialogue_guidance": "Keep exchanges concise and reversals understandable.",
+    "image_guidance": "Use readable vertical compositions and clear emotional focal points.",
+    "video_guidance": "Plan short reaction cuts and decisive endings.",
+    "constraints": [
+      "Preserve Canon and character/place identities.",
+      "Never infer ethnicity, religion, nationality, language or cultural setting from style.",
+      "Do not copy protected works or imitate named living artists.",
+      "Rating is classification, not permission for prohibited content."
+    ],
+    "status": "planning_preview",
+    "localized_guidance": {
+      "id": {
+        "narrative": "Mulai dengan konflik yang berarti dan akhiri dengan pembalikan yang beralasan.",
+        "dialogue": "Buat percakapan ringkas dan perubahan situasi mudah dipahami.",
+        "image": "Utamakan komposisi vertikal yang terbaca dan fokus emosi yang jelas.",
+        "video": "Rencanakan potongan reaksi singkat dan akhir yang tegas."
+      }
+    }
+  },
+  {
+    "id": "thai_lakorn",
+    "version": "1.0.0",
+    "name": {
+      "en": "Thai Lakorn",
+      "id": "Lakorn Thailand"
+    },
+    "region": "southeast_asia",
+    "summary": {
+      "en": "Relationships, rivalry, family secrets and dramatic reveals.",
+      "id": "Hubungan, persaingan, rahasia keluarga, dan pengungkapan dramatis."
+    },
+    "supported_formats": [
+      "story",
+      "webtoon",
+      "short_drama",
+      "story_reel"
+    ],
+    "narrative_guidance": "Develop relational stakes and motivated secrets without overriding facts.",
+    "dialogue_guidance": "Allow expressive confrontation while preserving character agency.",
+    "image_guidance": "Stage relationships clearly and emphasize emotional reactions.",
+    "video_guidance": "Use charged entrances, reveal cuts and changes of pace.",
+    "constraints": [
+      "Preserve Canon and character/place identities.",
+      "Never infer ethnicity, religion, nationality, language or cultural setting from style.",
+      "Do not copy protected works or imitate named living artists.",
+      "Rating is classification, not permission for prohibited content."
+    ],
+    "status": "planning_preview",
+    "localized_guidance": {
+      "id": {
+        "narrative": "Kembangkan taruhan hubungan dan rahasia yang beralasan tanpa mengubah fakta.",
+        "dialogue": "Gunakan konfrontasi ekspresif sambil menjaga pilihan tiap karakter.",
+        "image": "Perjelas hubungan lewat penataan adegan dan reaksi emosional.",
+        "video": "Gunakan kemunculan dramatis, pengungkapan, dan perubahan ritme."
+      }
+    }
+  },
+  {
+    "id": "indian_bollywood_romance",
+    "version": "1.0.0",
+    "name": {
+      "en": "Indian Bollywood Romance",
+      "id": "Romansa Bollywood India"
+    },
+    "region": "south_asia",
+    "summary": {
+      "en": "Expressive romance and optional spectacle.",
+      "id": "Romansa ekspresif dengan kemegahan sebagai pilihan."
+    },
+    "supported_formats": [
+      "story",
+      "webtoon",
+      "short_drama",
+      "story_reel"
+    ],
+    "narrative_guidance": "Balance romantic choices with emotional ensemble payoffs.",
+    "dialogue_guidance": "Use emotionally expressive dialogue grounded in character.",
+    "image_guidance": "Use an expressive palette and purposeful ensemble staging.",
+    "video_guidance": "Use emotion-led coverage; music and dance are optional.",
+    "constraints": [
+      "Preserve Canon and character/place identities.",
+      "Never infer ethnicity, religion, nationality, language or cultural setting from style.",
+      "Do not copy protected works or imitate named living artists.",
+      "Rating is classification, not permission for prohibited content."
+    ],
+    "status": "planning_preview",
+    "localized_guidance": {
+      "id": {
+        "narrative": "Seimbangkan pilihan romantis dengan penyelesaian emosional para karakter.",
+        "dialogue": "Gunakan dialog ekspresif yang tetap sesuai karakter.",
+        "image": "Gunakan palet ekspresif dan penataan kelompok yang terarah.",
+        "video": "Gerakkan kamera mengikuti emosi; lagu dan tarian bersifat opsional."
+      }
+    }
+  },
+  {
+    "id": "turkish_dizi_romance",
+    "version": "1.0.0",
+    "name": {
+      "en": "Turkish Dizi Romance",
+      "id": "Romansa Dizi Turki"
+    },
+    "region": "mena",
+    "summary": {
+      "en": "Layered loyalties and sustained emotional arcs.",
+      "id": "Loyalitas berlapis dan perkembangan emosi yang berkelanjutan."
+    },
+    "supported_formats": [
+      "story",
+      "webtoon",
+      "short_drama",
+      "story_reel"
+    ],
+    "narrative_guidance": "Develop relationship and family entanglements through serial choices.",
+    "dialogue_guidance": "Use layered subtext and expressive but grounded exchanges.",
+    "image_guidance": "Balance establishing shots with nuanced intimate framing.",
+    "video_guidance": "Use measured camera movement, two-shots and emotional holds.",
+    "constraints": [
+      "Preserve Canon and character/place identities.",
+      "Never infer ethnicity, religion, nationality, language or cultural setting from style.",
+      "Do not copy protected works or imitate named living artists.",
+      "Rating is classification, not permission for prohibited content."
+    ],
+    "status": "planning_preview",
+    "localized_guidance": {
+      "id": {
+        "narrative": "Kembangkan jalinan hubungan dan keluarga melalui pilihan yang berkelanjutan.",
+        "dialogue": "Gunakan makna berlapis dan percakapan ekspresif yang membumi.",
+        "image": "Seimbangkan gambaran lokasi dengan pembingkaian intim yang bernuansa.",
+        "video": "Gunakan gerak kamera terukur, bingkai berdua, dan jeda emosional."
+      }
+    }
+  },
+  {
+    "id": "european_period_drama",
+    "version": "1.0.0",
+    "name": {
+      "en": "European Period Drama",
+      "id": "Drama Periode Eropa"
+    },
+    "region": "europe",
+    "summary": {
+      "en": "Social expectations, relationships and period intrigue.",
+      "id": "Harapan sosial, hubungan, dan intrik dalam latar periode."
+    },
+    "supported_formats": [
+      "story",
+      "webtoon",
+      "short_drama",
+      "story_reel"
+    ],
+    "narrative_guidance": "Explore individual choices within explicitly chosen social constraints.",
+    "dialogue_guidance": "Use layered dialogue; do not invent historical speech or customs.",
+    "image_guidance": "Era-specific wardrobe and architecture require a separately chosen era and research.",
+    "video_guidance": "Use composed frames and researched props; flag historical uncertainty.",
+    "constraints": [
+      "Preserve Canon and character/place identities.",
+      "Never infer ethnicity, religion, nationality, language or cultural setting from style.",
+      "Do not copy protected works or imitate named living artists.",
+      "Rating is classification, not permission for prohibited content."
+    ],
+    "status": "planning_preview",
+    "localized_guidance": {
+      "id": {
+        "narrative": "Telusuri pilihan pribadi dalam batas sosial yang dipilih secara eksplisit.",
+        "dialogue": "Gunakan dialog berlapis; jangan mengarang bahasa atau adat sejarah.",
+        "image": "Busana dan arsitektur memerlukan periode tersendiri serta riset.",
+        "video": "Gunakan bingkai tertata dan properti berbasis riset; tandai ketidakpastian sejarah."
+      }
+    }
+  },
+  {
+    "id": "american_cinematic_drama",
+    "version": "1.0.0",
+    "name": {
+      "en": "Hollywood / American Cinematic Drama",
+      "id": "Drama Sinematik Hollywood / Amerika"
+    },
+    "region": "north_america",
+    "summary": {
+      "en": "Motivated choices, naturalistic dialogue and clear plot rhythm.",
+      "id": "Pilihan yang beralasan, dialog alami, dan ritme alur yang jelas."
+    },
+    "supported_formats": [
+      "story",
+      "webtoon",
+      "short_drama",
+      "story_reel"
+    ],
+    "narrative_guidance": "Balance motivated character decisions with plot and subplot payoffs.",
+    "dialogue_guidance": "Use distinct, naturalistic voices and meaningful subtext.",
+    "image_guidance": "Use motivated lighting and clear spatial continuity.",
+    "video_guidance": "Use performance-led coverage and motivated edits.",
+    "constraints": [
+      "Preserve Canon and character/place identities.",
+      "Never infer ethnicity, religion, nationality, language or cultural setting from style.",
+      "Do not copy protected works or imitate named living artists.",
+      "Rating is classification, not permission for prohibited content."
+    ],
+    "status": "planning_preview",
+    "localized_guidance": {
+      "id": {
+        "narrative": "Seimbangkan keputusan karakter dengan penyelesaian alur utama dan sampingan.",
+        "dialogue": "Gunakan suara yang berbeda, dialog alami, dan makna tersirat yang berarti.",
+        "image": "Gunakan pencahayaan beralasan dan kontinuitas ruang yang jelas.",
+        "video": "Utamakan penampilan karakter dan penyuntingan yang beralasan."
+      }
+    }
+  }
+]

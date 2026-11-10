@@ -148,7 +148,7 @@ async def generate_scene_endpoint(
         identity,
     )
 
-    story_generator = get_story_generator()
+    story_generator = get_story_generator(db, identity.user_id)
 
     action = create_story_action(
         db,

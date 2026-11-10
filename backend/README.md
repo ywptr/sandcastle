@@ -57,9 +57,10 @@ not automatically converted into Character records.
 `POST /stories/{story_id}/scenes/generate` accepts `{"request":"Continue..."}`.
 The existing `StoryGenerator` interface receives the saved Story, Characters,
 Places, approved Canon, and the current content of all previous Scenes.
-The OpenAI adapter is initialized only on demand and requires `OPENAI_API_KEY`,
-`SANDCASTLE_TEXT_MODEL`, and the installed SDK. Without them, this endpoint returns
-503 and manual authoring remains available. Generation never promotes prose to
+SC#0000 resolves the authenticated user’s `creative_writer` role through encrypted
+database-backed OpenAI, Anthropic, or Google configuration. Without a usable
+configuration, this endpoint returns 503 and manual authoring remains available.
+Environment API keys/model variables no longer enable generation. Generation never promotes prose to
 Canon. The local authority gate and Action log remain in place.
 
 M7 enables structured Canon extraction and explicit candidate review behind the
@@ -209,3 +210,49 @@ user accepts it in a later persistence workflow.
 [Persistent Story metadata](app/stories/README.md) documents shared language/genre
 validation, PATCH semantics, legacy defaults and generation/guidance behavior.
 Apply `7c2e91a4b830` only to verified development `sandcastle_dev`.
+
+
+### SC#0000 — multi-provider LLM configuration
+
+[AI provider architecture, security, CLI and operations](app/llm/README.md) describes
+the user-scoped BYOK settings and role resolver. OpenAI, Anthropic and Google support
+both Scene generation and M12A Import analysis; Guidance and active Canon extraction
+remain deterministic. Domain capability protocols remain intact.
+
+Apply migration `8d40f6a2c910` to verified `sandcastle_dev`. Configure the backend-only
+`SANDCASTLE_PROVIDER_SECRET_ENCRYPTION_KEY`, then explicitly configure each user's
+provider credentials/model through authenticated `/api/settings/llm` or
+`scripts/configure-llm-provider.py`. No environment key is automatically imported.
+`OPENAI_API_KEY` and `SANDCASTLE_TEXT_MODEL` are no longer runtime composition inputs.
+No production configuration was changed. Clients using the old environment-only
+setup must explicitly configure BYOK before AI requests will succeed.
+
+The CLI requires an exact IS subject, securely prompts for the key, and supports
+safe `--show`, `--disable`, `--enable`, and confirmed `--remove-credentials`. It uses
+the same transactional encryption service as the API. No local user directory or
+tenant credentials were introduced. Media execution/IG remains separate.
+
+### SC#0001 — Narrative-to-Media production planning
+
+[Production translation](app/media/production/README.md) turns one saved Scene into
+an editable Webtoon panel plan, Short Drama shot plan, or Story Reel beat plan.
+It uses the SC#0000 `narrative_media_translator` role with the user's existing
+provider credentials. Drafts are ephemeral; explicit approval stores immutable
+revisions and provider-neutral MediaPlan manifests. No media generation or IG call
+occurs. Scene, Canon, M9C audience treatment and the M4A quick planner remain separate.
+
+Migration `9e51b7c3d021` adds approved snapshots and the new bounded role. Apply only
+to verified development `sandcastle_dev` using DEVELOPMENT.md. The Scene workspace
+now includes Production and approved history. Source/context changes require a new
+adaptation rather than silent revision of old approval. Timing is estimated.
+
+Production schema application is a separate operator action using the default
+[fresh-terminal Vercel production migration procedure](PRODUCTION_MIGRATIONS.md).
+Never apply production migrations during development acceptance or deployment.
+
+SC#0004 adds [Creative Direction onboarding](app/creative_direction/README.md): a
+versioned style registry, provider-neutral ephemeral recommendations using the
+creative_writer role, atomic ordinary Story creation with approved direction, and
+append-only direction revisions. Migration `a062c8d4e132` follows `9e51b7c3d021`.
+Development application is restricted to verified `sandcastle_dev`; production
+application remains the separate documented operator procedure.

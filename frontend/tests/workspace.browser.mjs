@@ -36,6 +36,7 @@ else if(p.endsWith('/workflow')){if(body)Object.assign(workflow,body);result=wor
 else if(p==='/workflows/templates')result=[{workflow_template_id:'standard-story',version:1,name:'Standard',description:'A guided story workflow from scene drafting to explicit Canon review.',difficulty_minimum:'easy',configuration:config}];
 else if(p==='/workflows/difficulties')result=['easy','normal','difficult','impossible'].map((id,i)=>({id,label:id[0].toUpperCase()+id.slice(1),capabilities:i?caps:[]}));
 else if(p.includes('/characters')){if(body){Object.assign(characters[0],body);result=characters[0];}else result=characters;}
+else if(p.endsWith('/creative-direction'))result=null;
 else if(p.includes('/places')){if(failPlaces){status=503;result={detail:'Places temporarily unavailable'};}else if(body){Object.assign(places[0],body);result=places[0];}else result=places;}
 else if(p.endsWith('/canon/candidates'))result=candidates;
 else if(p.endsWith('/approve')||p.endsWith('/reject')){const c=candidates.find(c=>p.includes(c.canon_candidate_id));c.status=p.endsWith('/approve')?'approved':'rejected';result=c;}
@@ -70,6 +71,7 @@ const nav=page.getByRole('navigation',{name:'Story workspace',exact:true});
 await nav.getByRole('button',{name:'Characters',exact:true}).click();
 await page.getByRole('button',{name:'Edit character',exact:true}).click();await page.getByLabel('Personality').fill('Brave and observant.');await page.getByRole('button',{name:'Save character',exact:true}).click();
 await page.getByRole('button',{name:'Edit character',exact:true}).waitFor();assert.equal(characters[0].personality,'Brave and observant.');
+await nav.getByRole('button',{name:'More story tools',exact:true}).click();
 await nav.getByRole('button',{name:'Places',exact:true}).click();await page.getByRole('button',{name:'Edit place',exact:true}).click();await page.getByLabel('Atmosphere').fill('Quiet and uneasy.');await page.getByRole('button',{name:'Save place',exact:true}).click();await page.getByRole('button',{name:'Edit place',exact:true}).waitFor();assert.equal(places[0].atmosphere,'Quiet and uneasy.');
 await nav.getByRole('button',{name:'Canon',exact:true}).click();await page.getByRole('heading',{name:'Canon candidates'}).waitFor();await page.screenshot({path:out+'/canon.png',fullPage:true});
 const conflict=page.locator('.candidate-list li').filter({hasText:'Conflicts with'});assert.equal(await conflict.getByRole('button',{name:'Approve fact'}).isEnabled(),false);await conflict.getByRole('checkbox').check();await conflict.getByRole('button',{name:'Approve fact'}).click();await page.getByText('Canon approved explicitly.').waitFor();assert.equal(candidates[0].status,'approved');
@@ -81,7 +83,7 @@ await page.getByRole('button',{name:'Suggest what happens next'}).click();await 
 await nav.getByRole('button',{name:'Universe',exact:true}).click();await page.getByText('The Lantern Atlas',{exact:true}).waitFor();await page.getByText('Canon reference · co1').click();await page.getByText('Memory shapes the city.',{exact:false}).waitFor();
 await nav.getByRole('button',{name:'Assets',exact:true}).click();await page.getByText('Lantern study').waitFor();
 await page.getByRole('button',{name:'Browse series'}).click();await page.locator('.story-list-item').filter({hasText:'Letters'}).click();await page.getByRole('heading',{name:'Letters from the Tide',exact:true}).waitFor();
-await page.getByRole('button',{name:'Browse series'}).click();await page.getByRole('button',{name:'+ New series'}).click();await page.getByLabel('Title / idea').fill('A new horizon');await page.getByLabel('Story language').selectOption('ja');await page.getByRole('button',{name:'Create series',exact:true}).click();await page.getByRole('heading',{name:'A new horizon',exact:true}).waitFor();assert.equal(stories[0].language,'ja');
+await page.getByRole('button',{name:'Browse series'}).click();await page.getByRole('button',{name:'Detailed story form'}).click();await page.getByLabel('Title / idea').fill('A new horizon');await page.getByLabel('Story language').selectOption('ja');await page.getByRole('button',{name:'Create series',exact:true}).click();await page.getByRole('heading',{name:'A new horizon',exact:true}).waitFor();assert.equal(stories[0].language,'ja');
 for(const width of [1440,1024,768,390,320]){
 await page.setViewportSize({width,height:900});
 assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'overflow at '+width);

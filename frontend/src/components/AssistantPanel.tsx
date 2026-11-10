@@ -1,3 +1,4 @@
+import { useI18n } from "../i18n/context";
 import { useState } from "react";
 import { generateScene, type Scene, type StoryWorkflow } from "../api/sandcastle";
 import { NarrativeGuidance } from "./NarrativeGuidance";
@@ -6,6 +7,7 @@ export function AssistantPanel({ storyId, workflow, onSaved, onGenerated, onOpen
     storyId: string; workflow: StoryWorkflow | null; onSaved: (scene: Scene) => void;
     onGenerated: () => Promise<void>; onOpenScenes: () => void;
 }) {
+    const {t} = useI18n();
     const [request, setRequest] = useState("");
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -15,27 +17,27 @@ export function AssistantPanel({ storyId, workflow, onSaved, onGenerated, onOpen
         setBusy(true); setError(null); setStatus(null);
         try {
             const result = await generateScene(storyId, request.trim());
-            if (result.scene) { onSaved(result.scene); onOpenScenes(); setRequest(""); setStatus("Scene drafted. Review and edit it in Scenes. Canon remains unchanged."); }
-            else setStatus(result.action.decision?.reason ?? "This request requires approval.");
+            if (result.scene) { onSaved(result.scene); onOpenScenes(); setRequest(""); setStatus("assistant.saved"); }
+            else setStatus(result.action.decision?.reason ?? "assistant.approval");
             try { await onGenerated(); }
-            catch { setError("The writing result is saved, but the Authority log could not refresh. Reopen the story to retry the log read."); }
-        } catch (failure) { setError(failure instanceof Error ? failure.message : "Could not generate. Your prompt is ready to retry."); }
+            catch { setError("assistant.logError"); }
+        } catch { setError("assistant.failed"); }
         finally { setBusy(false); }
     }
     const enabled = !!workflow?.configuration.steps.some((s) => s.step_id === "scene_creation" && s.enabled);
-    return <aside className="assistant-panel" aria-label="Creative assistant">
-        <div className="assistant-heading"><span className="assistant-mark" aria-hidden="true">✦</span><div><span className="eyebrow">Creative companion</span><h2>Let’s shape your story</h2></div></div>
-        <p>Start with a direction. We’ll turn it into a scene you can make your own.</p>
-        <div className="assistant-note">Writing uses your saved story details, Characters, Places, approved Canon, and previous Scenes.</div>
-        <button type="button" className="prompt-chip" onClick={() => setRequest("Continue the story from the last scene, respecting established continuity.")}>Continue the story ↗</button>
+    return <aside className="assistant-panel" aria-label={t("assistant.label")}>
+        <div className="assistant-heading"><span className="assistant-mark" aria-hidden="true">✦</span><div><span className="eyebrow">{t("assistant.eyebrow")}</span><h2>{t("assistant.title")}</h2></div></div>
+        <p>{t("assistant.intro")}</p>
+        <div className="assistant-note">{t("assistant.context")}</div>
+        <button type="button" className="prompt-chip" onClick={() => setRequest("Continue the story from the last scene, respecting established continuity.")}>{t("assistant.continue")}</button>
         <NarrativeGuidance storyId={storyId} capabilities={workflow?.capabilities ?? []} disabled={busy}
             suggestionsEnabled={!!workflow?.configuration.steps.some((s) => s.step_id === "narrative_guidance" && s.enabled)} onSelect={setRequest} />
         <form onSubmit={(e) => { e.preventDefault(); void generate(); }}>
-            <label>What should happen next?<textarea rows={5} value={request} disabled={busy} onChange={(e) => setRequest(e.target.value)} placeholder="Describe the next moment in your story…" /></label>
-            <button type="submit" className="primary-button" disabled={busy || !enabled || !request.trim()}>{busy ? "Writing scene…" : "Generate scene →"}</button>
+            <label>{t("assistant.next")}<textarea rows={5} value={request} disabled={busy} onChange={(e) => setRequest(e.target.value)} placeholder={t("assistant.placeholder")} /></label>
+            <button type="submit" className="primary-button" disabled={busy || !enabled || !request.trim()}>{t(busy ? "assistant.writing" : "assistant.generate")}</button>
         </form>
-        {!enabled && <p className="muted">Load a workflow with Scene creation enabled to generate. Manual editing remains available in Scenes.</p>}
-        {status && <p role="status">{status}</p>}{error && <p className="error" role="alert">{error}</p>}
-        <small className="muted">Focused writing tools. General chat is a future capability; this area is separate from your saved story data.</small>
+        {!enabled && <p className="muted">{t("assistant.unavailable")}</p>}
+        {status && <p role="status">{t(status)}</p>}{error && <p className="error" role="alert">{t(error)}</p>}
+        <small className="muted">{t("assistant.scope")}</small>
     </aside>;
 }

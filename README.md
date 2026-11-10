@@ -13,6 +13,23 @@ For native development on `5480-deb13`, follow the
 uses its own `sandcastle_dev` PostgreSQL database and role, separate from cloud
 production and preview environments.
 
+## Implemented AI provider settings (SC#0000)
+
+Scene writing and Import analysis support user-scoped OpenAI, Anthropic and Google
+BYOK configuration with encrypted PostgreSQL credentials and semantic role routing.
+Use **AI Providers** in the account header or the
+[secure backend CLI](backend/app/llm/README.md#secure-cli). This replaces the old
+OpenAI environment-key composition. Guidance/Canon deterministic behavior, Story
+ownership, IS integration and IG media boundaries remain unchanged.
+
+## Narrative-to-Media planning (SC#0001)
+
+Scenes can be translated into editable Webtoon panels, Short Drama shots and Story
+Reel beats through the configured text provider. Users review structure and compiled
+instructions, then explicitly approve immutable production snapshots. This prepares
+media intent without generating images/video or contacting IG. See the
+[production architecture](backend/app/media/production/README.md).
+
 # Sandcastle V0 — Story-to-Comic
 
 ## 1. Product Goal
@@ -793,3 +810,11 @@ This is where Sandcastle begins moving from a consistency-guided generation syst
 
 M13 persists [Story language and genre](backend/app/stories/README.md) as project
 metadata for generation and guidance. Genre remains separate from Canon.
+
+SC#0004 implements idea-first Get Started, a prominent analysis-only Import entry,
+reviewable Creative Direction with versioned storytelling presets, and English /
+Indonesian UI localization. Easy navigation keeps deeper tools reachable through
+More story tools. Story language remains independent from interface language.
+[Creative Direction architecture](backend/app/creative_direction/README.md) and
+[frontend onboarding/localization](frontend/README.md#sc0004-get-started-and-localization)
+describe current boundaries: no import persistence, tenant AI, or live media execution.

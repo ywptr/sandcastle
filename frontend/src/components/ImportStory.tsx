@@ -1,0 +1,10 @@
+import { useState } from "react";
+import { analyzeStory, type ImportProposal } from "../api/creativeDirection";
+import { useI18n } from "../i18n/context";
+export function ImportStory({onBack}: {onBack:()=>void}) {
+    const {t}=useI18n(); const [content,setContent]=useState(""); const [type,setType]=useState("draft"); const [busy,setBusy]=useState(false); const [error,setError]=useState(false); const [proposal,setProposal]=useState<ImportProposal|null>(null);
+    return <section className="import-entry"><h2>{t("import.title")}</h2><p className="context-note">{t("import.notice")}</p><form onSubmit={async(e)=>{e.preventDefault();if(busy)return;setBusy(true);setError(false);setProposal(null);try{setProposal(await analyzeStory(content,type));}catch{setError(true);}finally{setBusy(false);}}}><fieldset disabled={busy}><label>{t("import.source")}<textarea rows={10} required maxLength={40000} value={content} onChange={(e)=>setContent(e.target.value)}/></label><label>{t("import.type")}<select value={type} onChange={(e)=>setType(e.target.value)}>{["draft","summary","notes"].map((v)=><option key={v} value={v}>{t(`import.${v}`)}</option>)}</select></label><button type="submit" className="primary-button" disabled={!content.trim()}>{t(busy?"import.analyzing":"import.analyze")}</button></fieldset></form>{error&&<p role="alert">{t("import.failed")}</p>}
+        {proposal&&<section className="panel"><h3>{t("import.result")}</h3><h4>{proposal.story.proposed_title}</h4><p>{proposal.story.premise}</p><details><summary>{t("import.evidence")}</summary>{proposal.story.evidence.map((v,i)=><blockquote key={i}>{v}</blockquote>)}</details><h4>{t("import.characters")}</h4><ul>{proposal.characters.map((v,i)=><li key={i}>{v.name}</li>)}</ul><h4>{t("import.places")}</h4><ul>{proposal.places.map((v,i)=><li key={i}>{v.name}</li>)}</ul><details><summary>{t("import.canon")}</summary>{proposal.canon_candidates.map((v,i)=><p key={i}>{v.key}: {v.value}</p>)}</details><ul>{proposal.warnings.map((v,i)=><li key={i}>{v}</li>)}</ul><p>{t("import.notice")}</p></section>}
+        <button type="button" disabled={busy} onClick={onBack}>{t("common.back")}</button>
+    </section>;
+}

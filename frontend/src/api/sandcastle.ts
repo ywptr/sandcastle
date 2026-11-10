@@ -141,7 +141,7 @@ export function loginUrl() {
     return `${API_BASE_URL}/auth/login`;
 }
 
-async function request<T>(
+export async function request<T>(
     path: string,
     options?: RequestInit,
 ): Promise<T> {
@@ -324,7 +324,7 @@ export interface CanonInput {
     value: string;
 }
 
-function write<T>(path: string, method: "POST" | "PATCH", body: object) {
+export function write<T>(path: string, method: "POST" | "PATCH" | "PUT", body: object) {
     return request<T>(path, {
         method,
         headers: { "Content-Type": "application/json" },

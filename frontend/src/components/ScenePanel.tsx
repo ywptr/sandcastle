@@ -1,13 +1,15 @@
 import { useState } from "react";
 import { createScene, updateScene, type Scene } from "../api/sandcastle";
+import { ProductionWorkspace } from "./ProductionWorkspace";
 import { RecordEditor, type EditorField } from "./RecordEditor";
 const fields: EditorField[] = [
     { name: "title", label: "Scene title", maxLength: 255 },
     { name: "content", label: "Scene content", required: true, multiline: true },
 ];
-export function ScenePanel({ storyId, scenes, onSaved, selectedId, onSelect }: {
-    storyId: string; scenes: Scene[]; onSaved: (scene: Scene) => void; selectedId: string | null; onSelect: (id: string) => void;
+export function ScenePanel({ storyId, scenes, onSaved, selectedId, onSelect, difficulty }: {
+    storyId: string; scenes: Scene[]; onSaved: (scene: Scene) => void; selectedId: string | null; onSelect: (id: string) => void; difficulty?: string;
 }) {
+    const [productionOpen, setProductionOpen] = useState(false);
     const [editing, setEditing] = useState<string | null>(null);
     const selected = scenes.find((s) => s.scene_id === selectedId) ?? scenes[0];
     const editingScene = scenes.find((s) => s.scene_id === editing);
@@ -27,5 +29,8 @@ export function ScenePanel({ storyId, scenes, onSaved, selectedId, onSelect }: {
                 <button type="button" className="secondary-button" onClick={() => setEditing(selected.scene_id)}>Edit scene</button></div>
                 <p className="eyebrow">{selected.status}</p><div className="scene-content">{selected.content}</div></article>
             : <div className="empty-state"><h3>A world waiting to unfold</h3><p>Write your opening scene, or describe it to the assistant.</p></div>}
+        {selected && <div className="scene-production"><button type="button" className="secondary-button" aria-expanded={productionOpen} onClick={() => setProductionOpen((v) => !v)}>Production · Webtoon / Short Drama / Story Reel</button>
+            {productionOpen && <ProductionWorkspace key={selected.scene_id} storyId={storyId} scene={selected} difficulty={difficulty} />}
+        </div>}
     </section>;
 }
