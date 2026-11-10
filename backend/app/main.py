@@ -67,3 +67,7 @@ def health():
         "status": "ok",
         "service": "sandcastle",
     }
+
+from app.api.llm_settings import router as llm_settings_router
+app.include_router(llm_settings_router, prefix="/api")
+

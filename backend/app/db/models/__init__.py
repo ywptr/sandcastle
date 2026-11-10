@@ -47,3 +47,10 @@ from app.db.models.universe_canon_reference import UniverseCanonReference
 from app.db.models.narrative_guidance_profile import NarrativeGuidanceProfile
 
 from app.db.models.story_workflow import StoryWorkflow
+
+from app.db.models.llm import LLMProviderConfig, LLMRoleBinding
+__all__ += ["LLMProviderConfig", "LLMRoleBinding"]
+
+from app.db.models.media_production import ApprovedMediaAdaptation
+__all__ += ["ApprovedMediaAdaptation"]
+from app.db.models.creative_direction import CreativeDirectionSnapshot

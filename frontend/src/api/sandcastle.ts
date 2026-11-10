@@ -446,3 +446,24 @@ export interface Artifact { artifact_id: string; display_name: string | null; so
 export interface ReferenceBinding { reference_id: string; artifact_id: string; target_type: string; target_id: string; role: string; label: string | null }
 export function listArtifacts(storyId: string) { return request<Artifact[]>(`/artifacts?story_id=${encodeURIComponent(storyId)}`); }
 export function listReferenceBindings(storyId: string) { return request<ReferenceBinding[]>(`/stories/${storyId}/references`); }
+
+export type LLMProviderId = "openai" | "anthropic" | "google";
+export interface LLMProviderConfig {
+    provider: LLMProviderId; supported: boolean; enabled: boolean; has_credentials: boolean;
+    config: { default_model: string | null };
+}
+export interface LLMRoleBinding {
+    role: "creative_writer" | "story_importer" | "narrative_media_translator"; provider: LLMProviderId | null; model: string | null;
+    selected_provider: LLMProviderId | null; selected_model: string | null; available: boolean;
+}
+export function listLLMProviders() { return request<LLMProviderConfig[]>("/settings/llm/providers"); }
+export function saveLLMProvider(provider: LLMProviderId, input: {
+    enabled?: boolean; config?: { default_model: string | null }; credentials?: { api_key: string };
+}) { return write<LLMProviderConfig>(`/settings/llm/providers/${provider}`, "PUT", input); }
+export function removeLLMCredentials(provider: LLMProviderId) {
+    return request<LLMProviderConfig>(`/settings/llm/providers/${provider}/credentials`, { method: "DELETE" });
+}
+export function listLLMRoles() { return request<LLMRoleBinding[]>("/settings/llm/roles"); }
+export function saveLLMRole(role: LLMRoleBinding["role"], provider: LLMProviderId | null, model?: string | null) {
+    return write<LLMRoleBinding[]>(`/settings/llm/roles/${role}`, "PUT", { provider, ...(model !== undefined ? { model } : {}) });
+}

@@ -1,95 +1,20 @@
-import json
-import os
-from app.stories.metadata import creative_constraints
-
+"""OpenAI adapter; all credentials/models are explicit operation-scoped values."""
 from openai import AsyncOpenAI
-
-from app.stories.generator import (
-    SceneGenerationContext,
-)
+from app.stories.prompts import build_prompt
+from app.llm.errors import ProviderFailed, reject_credential_output
 
 
 class OpenAIStoryGenerator:
-    def __init__(self) -> None:
-        self.client = AsyncOpenAI()
+    def __init__(self, *, api_key: str, model: str):
+        self._api_key, self.model = api_key, model
 
-        self.model = os.environ["SANDCASTLE_TEXT_MODEL"]
-
-    async def generate_scene(
-        self,
-        context: SceneGenerationContext,
-    ) -> str:
-        response = await self.client.responses.create(
-            model=self.model,
-            input=build_prompt(context),
-        )
-
-        return response.output_text.strip()
-
-
-def build_prompt(
-    context: SceneGenerationContext,
-) -> str:
-    return f"""
-You are the story-writing engine inside Sandcastle story-building app.
-
-Write the next scene.
-
-STORY TITLE
-{context.title}
-
-PREMISE
-{context.premise or "Not specified"}
-
-OBJECTIVE
-{context.objective or "Not specified"}
-
-CHARACTERS
-{json.dumps(context.characters, ensure_ascii=False)}
-
-PLACES
-{json.dumps(context.places, ensure_ascii=False)}
-
-ESTABLISHED CANON
-{format_canon(context.canon)}
-
-PREVIOUS SCENES
-{format_previous_scenes(context.previous_scenes)}
-
-USER REQUEST
-{context.request}
-
-Requirements:
-{chr(10).join(creative_constraints(context.language, context.primary_genre, context.secondary_genres))}
-- Preserve established canon.
-- Continue naturally from earlier scenes.
-- Do not contradict known facts.
-- Return only scene prose.
-""".strip()
-
-
-def format_canon(
-    canon: list[dict],
-) -> str:
-    if not canon:
-        return "No canon established yet."
-
-    return "\n".join(
-        f"- [{entry['type']}] "
-        f"{entry['key']}: "
-        f"{entry['value']}"
-        for entry in canon
-    )
-
-
-def format_previous_scenes(
-    scenes: list[str],
-) -> str:
-    if not scenes:
-        return "This is the first scene."
-
-    return "\n\n".join(
-        f"Scene {index + 1}:\n{content}"
-        for index, content
-        in enumerate(scenes)
-    )
+    async def generate_scene(self, context) -> str:
+        try:
+            async with AsyncOpenAI(api_key=self._api_key, base_url="https://api.openai.com/v1", timeout=60.0, max_retries=0) as client:
+                response = await client.responses.create(model=self.model, input=build_prompt(context), store=False, max_output_tokens=8000)
+            if response.status != "completed" or not response.output_text.strip():
+                raise ValueError()
+            reject_credential_output(response.output_text, self._api_key)
+            return response.output_text.strip()
+        except Exception:
+            raise ProviderFailed("Scene provider failed or returned incomplete output. No automatic retry was made.") from None

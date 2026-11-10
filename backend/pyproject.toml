@@ -13,6 +13,7 @@ dependencies = [
     "httpx",
     "itsdangerous",
     "openai",
+    "cryptography>=46,<49",
 ]
 
 [build-system]
@@ -21,3 +22,6 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 include = ["app*"]
+
+[tool.setuptools.package-data]
+"app.creative_direction" = ["styles.json"]

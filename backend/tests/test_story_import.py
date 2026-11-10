@@ -183,7 +183,7 @@ class AdapterTests(unittest.IsolatedAsyncioTestCase):
         manager.__aenter__=AsyncMock(return_value=client)
         manager.__aexit__=AsyncMock(return_value=False)
         with patch('app.story_import.openai_analyzer.AsyncOpenAI',return_value=manager),patch.dict(os.environ,{'SANDCASTLE_TEXT_MODEL':'fake-model'}):
-            await OpenAIStoryImportAnalyzer().analyze(ImportAnalysisRequest(content=source,source_type='notes'))
+            await OpenAIStoryImportAnalyzer(api_key="test-secret", model="fake-model").analyze(ImportAnalysisRequest(content=source,source_type='notes'))
         args=client.responses.parse.call_args.kwargs
         self.assertIs(args['text_format'],ImportAnalysis)
         self.assertFalse(args['store'])
@@ -202,4 +202,4 @@ class AdapterTests(unittest.IsolatedAsyncioTestCase):
             manager.__aexit__=AsyncMock(return_value=False)
             with patch('app.story_import.openai_analyzer.AsyncOpenAI',return_value=manager),patch.dict(os.environ,{'SANDCASTLE_TEXT_MODEL':'fake-model'}):
                 with self.assertRaises(ValueError):
-                    await OpenAIStoryImportAnalyzer().analyze(ImportAnalysisRequest(content=SOURCE,source_type='draft'))
+                    await OpenAIStoryImportAnalyzer(api_key="test-secret", model="fake-model").analyze(ImportAnalysisRequest(content=SOURCE,source_type='draft'))
