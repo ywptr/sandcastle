@@ -1,5 +1,4 @@
 import json
-import os
 
 from openai import AsyncOpenAI
 
@@ -10,11 +9,9 @@ from app.canon.extractor import (
 
 
 class OpenAICanonExtractor(CanonExtractor):
-    def __init__(self) -> None:
-        self.client = AsyncOpenAI()
-        self.model = os.environ[
-            "SANDCASTLE_TEXT_MODEL"
-        ]
+    def __init__(self, *, api_key: str, model: str) -> None:
+        self.client = AsyncOpenAI(api_key=api_key, base_url="https://api.openai.com/v1", timeout=60.0, max_retries=0)
+        self.model = model
 
 
     async def extract(

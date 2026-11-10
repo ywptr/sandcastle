@@ -1,0 +1,71 @@
+import json
+from app.stories.metadata import creative_constraints
+from app.stories.generator import SceneGenerationContext
+
+
+def build_prompt(
+    context: SceneGenerationContext,
+) -> str:
+    return f"""
+You are the story-writing engine inside Sandcastle story-building app.
+
+Write the next scene.
+
+STORY TITLE
+{context.title}
+
+PREMISE
+{context.premise or "Not specified"}
+
+OBJECTIVE
+{context.objective or "Not specified"}
+
+CHARACTERS
+{json.dumps(context.characters, ensure_ascii=False)}
+
+PLACES
+{json.dumps(context.places, ensure_ascii=False)}
+
+ESTABLISHED CANON
+{format_canon(context.canon)}
+
+PREVIOUS SCENES
+{format_previous_scenes(context.previous_scenes)}
+
+USER REQUEST
+{context.request}
+
+Requirements:
+{chr(10).join(creative_constraints(context.language, context.primary_genre, context.secondary_genres))}
+- Preserve established canon.
+- Continue naturally from earlier scenes.
+- Do not contradict known facts.
+- Return only scene prose.
+""".strip()
+
+
+def format_canon(
+    canon: list[dict],
+) -> str:
+    if not canon:
+        return "No canon established yet."
+
+    return "\n".join(
+        f"- [{entry['type']}] "
+        f"{entry['key']}: "
+        f"{entry['value']}"
+        for entry in canon
+    )
+
+
+def format_previous_scenes(
+    scenes: list[str],
+) -> str:
+    if not scenes:
+        return "This is the first scene."
+
+    return "\n\n".join(
+        f"Scene {index + 1}:\n{content}"
+        for index, content
+        in enumerate(scenes)
+    )

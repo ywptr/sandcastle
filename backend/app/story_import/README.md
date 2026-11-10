@@ -55,10 +55,10 @@ port nor service receives a database session or authenticated identity.
 
 The initial optional OpenAI adapter uses Responses structured output with a
 Pydantic schema, following the [official structured-output guide](https://developers.openai.com/api/docs/guides/structured-outputs).
-Install the already-declared SDK via backend dependencies and configure private
-`OPENAI_API_KEY` and `SANDCASTLE_TEXT_MODEL` with a model supporting structured
-outputs. These are the existing text-generation settings; there is no hard-coded
-model or new provider dependency in domain logic. Imported content is sent to the
+Configure a model supporting structured outputs through the authenticated user’s
+SC#0000 AI provider settings. The OpenAI adapter uses the already-declared SDK;
+Anthropic and Google use adapter-local HTTPX requests. No environment API-key
+fallback or hard-coded model exists in domain logic. Imported content is sent to the
 configured provider for analysis. The adapter sets `store=False`, uses no tools,
 limits output to 12,000 tokens, disables retries and uses a 60-second SDK timeout.
 Refusal, incomplete output, provider errors, malformed schemas or invalid evidence
@@ -126,3 +126,22 @@ browser test is claimed; no frontend was added.
 M13 now provides [persistent Story metadata](../stories/README.md). Future M12B
 maps `proposal.story.detected_language`, `primary_genre` and `secondary_genres`
 to Story fields only after user review. M12A continues to perform no writes.
+
+
+## SC#0000 provider composition
+
+The earlier environment-only OpenAI setup is superseded. Import analysis now
+resolves the authenticated user’s `story_importer` role through encrypted database
+settings for OpenAI, Anthropic, or Google; see [LLM configuration](../llm/README.md).
+There is no `OPENAI_API_KEY`/`SANDCASTLE_TEXT_MODEL` fallback or automatic secret
+migration. The capability protocol, untrusted-source isolation, typed validation,
+exact evidence rules, 40,000-character input limit and analysis-only behavior stay
+unchanged. Settings reads require a database, but analysis writes no proposals or
+Story/domain data. Provider errors have no automatic fallback/retry.
+
+## SC#0004 UI entry
+
+Home → Import an existing story now calls the existing analysis endpoint and shows
+a read-only summary and evidence. This supersedes the historical no-frontend note
+above. It does not create Stories, Characters, Places, Canon, or import proposals
+in persistence; complete review/application remains a separate SC#0005 milestone.

@@ -17,7 +17,7 @@ class MetadataMigrationTests(unittest.TestCase):
             if make_url(url).get_backend_name() == 'sqlite':
                 from app.db.database import Base
                 fixture_engine = create_engine(url)
-                Base.metadata.create_all(fixture_engine)
+                Base.metadata.create_all(fixture_engine, tables=[t for t in Base.metadata.sorted_tables if not t.name.startswith("llm_") and t.name not in ("approved_media_adaptations", "creative_direction_snapshots")])
                 with fixture_engine.begin() as connection:
                     for column in ('language', 'primary_genre', 'secondary_genres'):
                         connection.exec_driver_sql(f'ALTER TABLE stories DROP COLUMN {column}')
