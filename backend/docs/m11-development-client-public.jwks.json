@@ -1,0 +1,13 @@
+{
+  "keys": [
+    {
+      "crv": "P-256",
+      "kty": "EC",
+      "x": "hu0PRAqk53_oHUUDFqxZRZDB69SEka5nYdQN4y825ag",
+      "y": "_7jTQ8AyOc3see8tqCdU-Vm2Lw-j3vvpUEpS68UmAMQ",
+      "kid": "sandcastle-dev-nRE35Mf-lAcXtiRxymFGmbxAiPyzdCVCZ0RkAB2jI5I",
+      "alg": "ES256",
+      "use": "sig"
+    }
+  ]
+}

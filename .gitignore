@@ -17,3 +17,6 @@ frontend/.env.local
 
 # Temporary Vercel production migration environment; delete after operator use.
 .env.production.local
+
+# Backend-only Development OAuth client signing material.
+backend/.secrets/
