@@ -39,6 +39,31 @@ classification was unverified; it must not be used for development migrations.
 A distinct Preview database/branch has not been verified. No Vercel variables or
 Neon branches are modified by local setup.
 
+## Provider encryption configuration
+
+Validate provider encryption configuration from `backend/`:
+
+```sh
+.venv/bin/python -B -m app.llm.secrets
+```
+
+This loads `backend/.env` with exported values taking precedence. It reports only
+`SANDCASTLE_PROVIDER_SECRET_ENCRYPTION_KEY: missing`, `malformed`, or `valid`.
+Unset/empty values are missing; nonempty values rejected by Fernet are malformed.
+Exit status is 0 for valid and 1 otherwise. No key material is printed, and no
+database or provider is contacted. Valid format does not prove that the key can
+decrypt existing credentials. HTTP errors remain sanitized; `/health` remains a
+liveness check independent of optional AI configuration.
+
+Generate a key in a private operator terminal:
+
+```sh
+.venv/bin/python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+```
+
+Store it only in protected backend configuration, never `.env.example`. Retain an
+existing key unless re-encrypting or reconfiguring stored credentials.
+
 ## Provision or recreate
 
 An administrator must first inspect database ownership, role attributes, existing

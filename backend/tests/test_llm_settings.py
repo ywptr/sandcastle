@@ -131,6 +131,36 @@ class ProviderSettingsTests(unittest.TestCase):
         self.assertEqual(self.client.get(ROOT+"/providers").status_code, 401)
         self.assertEqual(self.client.put(ROOT+"/providers/openai", json={"enabled": True}).status_code, 401)
 
+    def test_encryption_configuration_status_and_safe_http_failures(self):
+        import io
+        from contextlib import redirect_stdout, redirect_stderr
+        from app.llm.secrets import KEY_ENV, encryption_key_status, main
+
+        valid = Fernet.generate_key().decode()
+        for value, expected in [(None, "missing"), ("", "missing"),
+                                ("malformed-test-secret", "malformed"),
+                                ("non-ascii-秘密", "malformed"), (valid, "valid")]:
+            with self.subTest(status=expected), patch.dict(os.environ):
+                if value is None:
+                    os.environ.pop(KEY_ENV, None)
+                else:
+                    os.environ[KEY_ENV] = value
+                output, errors = io.StringIO(), io.StringIO()
+                with patch("dotenv.load_dotenv"), redirect_stdout(output), redirect_stderr(errors):
+                    self.assertEqual(encryption_key_status(), expected)
+                    self.assertEqual(main(), 0 if expected == "valid" else 1)
+                self.assertEqual(output.getvalue(), f"{KEY_ENV}: {expected}\n")
+                self.assertEqual(errors.getvalue(), "")
+                response = self.client.put(ROOT + "/providers/openai",
+                    json={"credentials": {"api_key": KEY}})
+                self.assertEqual(response.status_code, 200 if expected == "valid" else 503)
+                if expected != "valid":
+                    self.assertEqual(response.json(), {"detail":
+                        "AI settings could not be saved. Check encryption configuration or retry."})
+                self.assertNotIn(KEY, response.text)
+                if value:
+                    self.assertNotIn(value, output.getvalue() + errors.getvalue() + response.text)
+
     def test_missing_encryption_key_or_storage_failure_is_safe(self):
         with patch.dict(os.environ, SANDCASTLE_PROVIDER_SECRET_ENCRYPTION_KEY="invalid"):
             r = self.client.put(ROOT+"/providers/openai", json={"credentials": {"api_key": KEY}})

@@ -56,6 +56,29 @@ backup separate from the database and never reuse IG's key. Development uses ign
 No deployment variables were changed for SC#0000. Missing/invalid keys make secret
 writes/use unavailable without breaking manual authoring or safe settings reads.
 
+Validate provider encryption configuration from `backend/`:
+
+```sh
+.venv/bin/python -B -m app.llm.secrets
+```
+
+This loads `backend/.env` with exported values taking precedence. It reports only
+`SANDCASTLE_PROVIDER_SECRET_ENCRYPTION_KEY: missing`, `malformed`, or `valid`.
+Unset/empty values are missing; nonempty values rejected by Fernet are malformed.
+Exit status is 0 for valid and 1 otherwise. No key material is printed, and no
+database or provider is contacted. Valid format does not prove that the key can
+decrypt existing credentials. HTTP errors remain sanitized; `/health` remains a
+liveness check independent of optional AI configuration.
+
+Generate a key in a private operator terminal:
+
+```sh
+.venv/bin/python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+```
+
+Store it only in protected backend configuration, never `.env.example`. Retain an
+existing key unless re-encrypting or reconfiguring stored credentials.
+
 Supplying credentials replaces the encrypted secret; omitting them preserves it.
 `null`/empty credential payloads are invalid. Disable preserves the key. Explicit
 removal erases it and disables the provider. Re-enable preserves the existing
