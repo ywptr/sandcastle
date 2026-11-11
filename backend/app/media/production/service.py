@@ -1,9 +1,12 @@
 """Narrative interpretation/review/approval; never executes media or changes story content."""
 import hashlib
 import json
+import logging
 from uuid import uuid4
 from fastapi import HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
+from app.llm.errors import ProviderFailed, ProviderIncomplete, ProviderOutputInvalid
+from app.media.production.diagnostics import TranslationFailed, schema_reason
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from app.db.models import ApprovedMediaAdaptation, CanonCandidate, Scene, Story
@@ -117,19 +120,55 @@ def add_context_warnings(db, context, plan):
     return plan
 
 
+logger = logging.getLogger(__name__)
+
+# Only these application-owned messages may enter diagnostics. Never log arbitrary exception text.
+DOMAIN_RULES = {
+    "Production format does not match the requested format": "wrong_target_format",
+    "Each production beat needs an exact excerpt from the source Scene": "source_excerpt_not_exact",
+    "Production contains an unavailable Character ID": "unavailable_character_id",
+    "Production contains an unavailable Place ID": "unavailable_place_id",
+    "Production contains an unavailable Artifact reference": "unavailable_artifact_id",
+    "Artifact reference binding does not match this beat's selected subjects": "artifact_binding_mismatch",
+}
+
+
 async def translate_scene(db, context, translator):
+    category, reason = "unexpected_translation_failure", "internal_error"
     try:
         raw = await translator.translate(context)
         proposal = ProductionProposal.model_validate(raw.model_dump() if isinstance(raw, BaseModel) else raw)
         validate_proposal(context, proposal)
+        plan = MediaProductionPlan(**proposal.model_dump(), story_id=context.story_id, scene_id=context.scene.scene_id,
+            target_format=context.target_format, source_digest=context.source_digest, context_digest=context.context_digest,
+            continuity_context=context.continuity, instruction=context.instruction)
+        add_context_warnings(db, context, plan)
+        plan.compiled_instructions = compile_instructions(plan)
+        return plan
+    except TranslationFailed as error:
+        category, reason = error.category, error.reason
+    except ProviderIncomplete:
+        category, reason = "provider_incomplete", "response_not_completed"
+    except ProviderOutputInvalid:
+        category, reason = "provider_structured_output_invalid", "credential_output_rejected"
+    except ProviderFailed:
+        category, reason = "provider_request_failed", "request_failed"
+    except ValidationError as error:
+        category, reason = "schema_validation_failed", schema_reason(error)
+    except InvalidMediaIntent as error:
+        category, reason = "domain_validation_failed", DOMAIN_RULES.get(str(error), "invalid_domain_proposal")
     except Exception:
-        raise HTTPException(502, "Narrative translation failed or returned an invalid plan. No plan was saved.") from None
-    plan = MediaProductionPlan(**proposal.model_dump(), story_id=context.story_id, scene_id=context.scene.scene_id,
-        target_format=context.target_format, source_digest=context.source_digest, context_digest=context.context_digest,
-        continuity_context=context.continuity, instruction=context.instruction)
-    add_context_warnings(db, context, plan)
-    plan.compiled_instructions = compile_instructions(plan)
-    return plan
+        pass
+    # Metadata comes from bounded settings, not upstream response text. Suppress credential collisions.
+    provider = {"OpenAINarrativeMediaTranslator": "openai", "AnthropicNarrativeMediaTranslator": "anthropic",
+        "GoogleNarrativeMediaTranslator": "google"}.get(type(translator).__name__, "unknown")
+    model = getattr(translator, "model", "unknown")
+    key = getattr(translator, "_api_key", None)
+    if not isinstance(model, str) or len(model) > 255 or (key and key in model):
+        model = "redacted"
+    logger.warning("Narrative translation failed category=%s reason=%s provider=%s model=%r target_format=%s story_id=%s scene_id=%s",
+        category, reason, provider, model, context.target_format, context.story_id, context.scene.scene_id)
+    raise HTTPException(502, "Narrative translation failed or returned an invalid plan. No plan was saved.") from None
 
 
 def review_plan(db, story_id, scene_id, user_id, plan):

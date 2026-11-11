@@ -72,3 +72,71 @@ class TranslatorAdapterTests(unittest.IsolatedAsyncioTestCase):
                 with self.assertRaises(ProviderFailed) as caught:
                     await Adapter(api_key=KEY,model='test-model',transport=httpx.MockTransport(handle)).translate(context('webtoon'))
                 self.assertNotIn(KEY,str(caught.exception));self.assertEqual(len(calls),1)
+
+    async def test_openai_failure_boundaries_are_fixed_and_sanitized(self):
+        from openai import APIConnectionError
+        from pydantic import ValidationError
+        from app.media.production.adapters.openai import OpenAINarrativeMediaTranslator
+        from app.media.production.diagnostics import TranslationFailed
+        valid = proposal_type("webtoon").model_validate(proposal())
+        malformed = schema_error = None
+        try:
+            proposal_type("webtoon").model_validate_json(KEY)
+        except ValidationError as error:
+            malformed = error
+        try:
+            proposal_type("webtoon").model_validate({"summary": KEY})
+        except ValidationError as error:
+            schema_error = error
+        leaked = valid.model_copy(update={"summary": KEY})
+        cases = [
+            (APIConnectionError(request=httpx.Request("POST", "https://api.openai.com/v1/responses")), None, "provider_request_failed"),
+            (None, SimpleNamespace(status="incomplete", output_parsed=None), "provider_incomplete"),
+            (None, SimpleNamespace(status="completed", output_parsed=None), "provider_structured_output_invalid"),
+            (malformed, None, "provider_structured_output_invalid"),
+            (schema_error, None, "schema_validation_failed"),
+            (None, SimpleNamespace(status="completed", output_parsed=leaked), "provider_structured_output_invalid"),
+        ]
+        for error, response, category in cases:
+            with self.subTest(category=category):
+                client = MagicMock(); client.responses.parse = AsyncMock(side_effect=error, return_value=response)
+                manager = MagicMock(__aenter__=AsyncMock(return_value=client), __aexit__=AsyncMock(return_value=False))
+                with patch("app.media.production.adapters.openai.AsyncOpenAI", return_value=manager), self.assertRaises(TranslationFailed) as caught:
+                    await OpenAINarrativeMediaTranslator(api_key=KEY, model="test-model").translate(context("webtoon"))
+                self.assertEqual(caught.exception.category, category)
+                self.assertNotIn(KEY, str(caught.exception))
+                client.responses.parse.assert_awaited_once()
+
+    async def test_http_adapters_separate_bad_json_from_schema_failure(self):
+        from app.media.production.diagnostics import TranslationFailed
+        for Adapter, method in [(AnthropicNarrativeMediaTranslator, "_message"), (GoogleNarrativeMediaTranslator, "_generate")]:
+            for text, category in [("malformed-json", "provider_structured_output_invalid"), ("{}", "schema_validation_failed")]:
+                with patch.object(Adapter, method, AsyncMock(return_value=text)), self.assertRaises(TranslationFailed) as caught:
+                    await Adapter(api_key=KEY, model="test-model").translate(context("webtoon"))
+                self.assertEqual(caught.exception.category, category)
+
+    async def test_format_bounds_and_timing_are_never_relaxed(self):
+        import copy
+        from pydantic import ValidationError
+        for target, field, maximum, duration_field, duration_max in [
+            ("webtoon", "panels", 12, None, None),
+            ("short_drama", "shots", 24, "estimated_duration", 30),
+            ("story_reel", "beats", 20, "duration", 15),
+        ]:
+            schema = proposal_type(target)
+            invalid = []
+            for items in [[], proposal(target)["production"][field] * (maximum + 1)]:
+                value = proposal(target); value["production"][field] = items; invalid.append(value)
+            value = proposal(target)
+            number = {"webtoon": "panel_number", "short_drama": "shot_number", "story_reel": "beat_number"}[target]
+            value["production"][field][0][number] = 2; invalid.append(value)
+            if duration_field:
+                for duration in [0, duration_max + 1, True, 1.5]:
+                    value = proposal(target); value["production"][field][0][duration_field] = duration; invalid.append(value)
+                value = proposal(target); value["production"]["target_duration_seconds"] += 1; invalid.append(value)
+                value = proposal(target); value["production"]["target_duration_seconds"] = 121 if target == "short_drama" else 91; invalid.append(value)
+            else:
+                value = proposal(target); value["production"][field][0]["framing"] = "invented"; invalid.append(value)
+            for value in invalid:
+                with self.subTest(target=target), self.assertRaises(ValidationError):
+                    schema.model_validate(copy.deepcopy(value))

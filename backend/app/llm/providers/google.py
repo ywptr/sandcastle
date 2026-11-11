@@ -1,6 +1,6 @@
 import json
 from urllib.parse import quote
-from app.llm.errors import ProviderFailed, reject_credential_output
+from app.llm.errors import ProviderFailed, ProviderIncomplete, ProviderOutputInvalid, reject_credential_output
 from app.llm.providers.http import post_json, import_schema
 from app.stories.prompts import build_prompt
 from app.story_import.prompts import SYSTEM_INSTRUCTIONS
@@ -28,8 +28,10 @@ class GoogleStoryGenerator:
                 raise ValueError()
             reject_credential_output(text, self._api_key)
             return text
+        except ProviderOutputInvalid:
+            raise
         except Exception:
-            raise ProviderFailed("Google returned incomplete, blocked, or invalid output.") from None
+            raise ProviderIncomplete("Google returned incomplete, blocked, or invalid output.") from None
 
     async def generate_scene(self, context) -> str:
         return (await self._generate({"contents": [{"role": "user", "parts": [{"text": build_prompt(context)}]}],

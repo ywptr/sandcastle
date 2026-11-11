@@ -318,3 +318,94 @@ no signed-in session or approved development provider credential was supplied.
 Browser acceptance uses isolated API fixtures; it does not establish live model
 interpretation quality. No billable LLM call, image/video generation, media content
 read/copy or IG request was performed during validation.
+
+## SC#0001A safe failure diagnostics
+
+The actual route is `POST /api/stories/{story_id}/scenes/{scene_id}/adaptations`
+→ `app.api.production.translate` → ownership-checked `build_context` →
+`resolve_adapter(..., "narrative_media_translator")` → translator →
+`ProductionProposal` validation → `validate_proposal` → ephemeral plan compilation.
+It never calls `scene_service.generate_scene`. Approval is a separate operation.
+
+HTTP failures retain the existing sanitized 502 message. The
+`app.media.production.service` logger emits fixed categories and reasons:
+
+| Category | Boundary |
+| --- | --- |
+| `provider_request_failed` | Provider transport/API exception |
+| `provider_incomplete` | Non-completed, refused, blocked, or empty text result |
+| `provider_structured_output_invalid` | Malformed JSON, missing parsed output, credential echo |
+| `schema_validation_failed` | Pydantic fields, bounds, numbering, or duration sum |
+| `domain_validation_failed` | Requested format, exact evidence, allowed IDs, artifact binding |
+| `unexpected_translation_failure` | Unexpected adapter/service/compiler failure |
+
+Domain reasons distinguish `source_excerpt_not_exact`, `unavailable_character_id`,
+`unavailable_place_id`, `unavailable_artifact_id`, `artifact_binding_mismatch`, and
+`wrong_target_format`. Timing/ordering errors use `duration_mismatch` and
+`nonconsecutive_beats`. Logs include provider, model, target format and Story/Scene
+IDs. No raw exceptions, prompts, response bodies, narrative content, credential
+ciphertext, headers, or stack traces are logged by this diagnostic path. Do not
+enable upstream HTTP/SDK debug logging when handling real credentials.
+
+Provider output must satisfy the full saved Pydantic schema and then the unchanged
+domain rules. Per-format schemas avoid sending the discriminated production union.
+OpenAI's SDK makes fields required and forbids additional properties for strict
+Responses structured output. Google receives the per-format JSON schema; Anthropic
+retains its transport-only normalization. No new schema relaxation is necessary
+for the verified OpenAI model. A model must support the adapter's API and structured
+output contract; simple text generation alone is not a compatibility test.
+
+`allowed_ids` is an explicit exhaustive projection of the selected context. Empty
+allowlists require empty beat ID arrays, even when prose names a person or place.
+Names and Story/Scene/binding IDs cannot substitute for subject IDs. Artifacts
+remain subject to their per-beat binding. The final checks remain authoritative.
+`source_excerpt` must be a nonblank contiguous verbatim substring of saved Scene
+content, including punctuation and language. No paraphrase, translation, quote
+normalization, joined excerpt, or semantic matching is accepted. Durations and
+numbering remain strictly validated; the server never silently repairs arithmetic.
+
+Troubleshooting sequence:
+
+1. Verify the authenticated IS user and local database target. Read safe settings
+   for the translator role, provider, enabled flag, credential presence, and model.
+2. Check encryption configuration without printing its value (see LLM README).
+3. Reproduce the adaptations endpoint, then inspect the category and fixed reason.
+4. For request failures, verify model/API/schema support and provider account access.
+   Never silently change models/providers or enable retries.
+5. For schema/domain failures, improve instructions and context presentation while
+   retaining final validation. Check exact excerpts, allowlists, bindings and sums.
+6. Retest all three formats with small inputs. Verify no translation-side database
+   changes and no IG/media calls. Approval must remain explicit.
+
+### Development reproduction and limits
+
+Verified `sandcastle_dev` database/login on loopback and the user-confirmed existing
+owner. Existing routing selected OpenAI `gpt-4.1-mini`, enabled with credentials,
+without an explicit translator-role override. A live Webtoon request completed and
+parsed into a valid typed proposal but failed domain validation with
+`unavailable_character_id`; Story Reel showed the same failure. Short Drama passed.
+A preceding Webtoon attempt passed, establishing intermittent output behavior.
+
+After explicit allowlist instructions, the saved Scene passed all three formats.
+All table snapshots before/after were identical. A second smoke test created a
+simple synthetic Scene within a transaction, passed all three formats, and rolled
+back the fixture; the complete database snapshot matched its original state. Live checks invoked the route
+function with the confirmed existing owner identity and real resolver; they did not
+verify a browser session or exercise the HTTP authentication transport. Automated
+TestClient coverage separately verifies routing, HTTP sanitization, and ownership.
+No production configuration/database, IG call, media generation, model substitution,
+or saved provider configuration was used or changed.
+
+Official compatibility references:
+[GPT-4.1 mini](https://developers.openai.com/api/docs/models/gpt-4.1-mini) and
+[Structured Outputs](https://developers.openai.com/api/docs/guides/structured-outputs).
+Live acceptance verifies the actual nested schemas for this configured model;
+other providers/models still require their own live smoke test.
+
+Validation: focused production/adapter modules passed 24 tests; full backend
+passed 198 tests with one opt-in PostgreSQL bootstrap skip. Tests cover all failure
+categories, exact evidence variants, unavailable IDs, binding failures, format
+bounds/numbering, duration sums, sanitized HTTP/log output, and full-table snapshot
+isolation. Changed-file secret scanning and `git diff --check` passed. Frontend
+was unchanged. Provider output remains probabilistic; invalid plans still fail
+closed, and only OpenAI was exercised live in this maintenance slice.

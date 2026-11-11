@@ -58,6 +58,10 @@ class FakeTranslator:
 
 class ProductionTests(unittest.TestCase):
     def setUp(self):
+        # Earlier Alembic tests configure logging with disable_existing_loggers=True.
+        logging_patch = patch.object(service.logger, "disabled", False)
+        logging_patch.start()
+        self.addCleanup(logging_patch.stop)
         self.world = test_world_api.WorldAPITests(); self.world.setUp()
         self.client, self.sessions = self.world.client, self.world.sessions
         self.scene = self.world.post(self.world.root+"/scenes", {"title":"The signal", "content":SOURCE})
@@ -150,6 +154,89 @@ class ProductionTests(unittest.TestCase):
         output=proposal(character_ids=['invented']);self.fake.output=output
         self.assertEqual(self.client.post(self.base,json={'target_format':'webtoon'}).status_code,502)
         self.assertEqual(self.counts()['approved_media_adaptations'],0)
+
+    def test_classified_failures_log_safely_and_leave_every_table_unchanged(self):
+        from unittest.mock import AsyncMock
+        from app.llm.errors import ProviderFailed, ProviderIncomplete, ProviderOutputInvalid
+        from app.media.production.diagnostics import TranslationFailed
+        secret = "private-provider-payload-never-log"
+        cases = [
+            (ProviderFailed(secret), None, "provider_request_failed", "request_failed"),
+            (ProviderIncomplete(secret), None, "provider_incomplete", "response_not_completed"),
+            (ProviderOutputInvalid(secret), None, "provider_structured_output_invalid", "credential_output_rejected"),
+            (TranslationFailed("provider_structured_output_invalid", "parsed_output_missing"), None,
+                "provider_structured_output_invalid", "parsed_output_missing"),
+            (None, {"summary": secret}, "schema_validation_failed", "invalid_proposal_schema"),
+            (RuntimeError(secret), None, "unexpected_translation_failure", "internal_error"),
+            (None, proposal("short_drama"), "domain_validation_failed", "wrong_target_format"),
+        ]
+        for field, value, reason in [
+            ("source_excerpt", "Paraphrased source", "source_excerpt_not_exact"),
+            ("character_ids", ["invented"], "unavailable_character_id"),
+            ("place_ids", ["invented"], "unavailable_place_id"),
+            ("artifact_ids", ["invented"], "unavailable_artifact_id"),
+        ]:
+            output = proposal(); output["production"]["panels"][0][field] = value
+            cases.append((None, output, "domain_validation_failed", reason))
+        output = proposal("short_drama"); output["production"]["target_duration_seconds"] = 99
+        cases.append((None, output, "schema_validation_failed", "duration_mismatch"))
+        artifact = self.world.post("/api/artifacts", {"source": "external", "story_id": self.world.story["story_id"],
+            "retrieval_reference": "https://media.example.test/diagnostic"})
+        self.world.post(self.world.root + "/references", {"artifact_id": artifact["artifact_id"], "target_type": "character",
+            "target_id": self.character["character_id"], "role": "character_identity"})
+        cases.append((None, proposal(artifact_ids=[artifact["artifact_id"]]), "domain_validation_failed", "artifact_binding_mismatch"))
+        def snapshot():
+            with self.sessions() as db:
+                return {table.name: [dict(row) for row in db.execute(select(table)).mappings()]
+                    for table in Base.metadata.sorted_tables}
+        before = snapshot()
+        for error, output, category, reason in cases:
+            with self.subTest(category=category, reason=reason):
+                with patch.object(self.fake, "translate", AsyncMock(side_effect=error, return_value=output)), \
+                     self.assertLogs("app.media.production.service", level="WARNING") as captured:
+                    response = self.client.post(self.base, json={"target_format": "webtoon"})
+                self.assertEqual(response.status_code, 502)
+                logs = "\n".join(captured.output)
+                self.assertIn("category=" + category, logs)
+                self.assertIn("reason=" + reason, logs)
+                self.assertNotIn(secret, logs + response.text)
+                self.assertNotIn(SOURCE, logs + response.text)
+                self.assertEqual(snapshot(), before)
+        with patch("app.media.production.service.compile_instructions", side_effect=RuntimeError(secret)), \
+             self.assertLogs("app.media.production.service", level="WARNING") as captured:
+            # Select a valid unbound proposal so the compiler is reached.
+            self.fake.output = proposal()
+            response = self.client.post(self.base, json={"target_format": "webtoon"})
+        self.assertEqual(response.status_code, 502)
+        self.assertIn("unexpected_translation_failure", str(captured.output))
+        self.assertNotIn(secret, str(captured.output) + response.text)
+        self.assertEqual(snapshot(), before)
+
+    def test_source_evidence_requires_verbatim_contiguous_original_text(self):
+        for excerpt in ["An old radio lights up!", "Radio menyala.",
+                        "Mara enters … the transmission cuts out.", "Elias’s voice comes through.",
+                        "An old radio lights up. Mara answers"]:
+            output = proposal(); output["production"]["panels"][0]["source_excerpt"] = excerpt
+            self.fake.output = output
+            with self.assertLogs("app.media.production.service", level="WARNING") as captured:
+                response = self.client.post(self.base, json={"target_format": "webtoon"})
+            self.assertEqual(response.status_code, 502)
+            self.assertIn("source_excerpt_not_exact", str(captured.output))
+        self.fake.output = proposal()
+        self.fake.output["production"]["panels"][0]["source_excerpt"] = "Elias's voice comes through."
+        self.translated()
+
+    def test_prompt_allowlists_are_exact_and_empty_when_no_records_selected(self):
+        self.translated()
+        context = self.fake.contexts[-1]
+        data = context.narrative_data()
+        self.assertEqual(data["allowed_ids"]["character_ids"], [self.character["character_id"]])
+        self.assertEqual(data["allowed_ids"]["place_ids"], [self.place["place_id"]])
+        self.assertEqual(data["allowed_ids"]["artifact_ids"], [])
+        from dataclasses import replace
+        continuity = context.continuity.model_copy(update={"characters": [], "places": []})
+        self.assertEqual(replace(context, continuity=continuity).narrative_data()["allowed_ids"],
+            {"character_ids": [], "place_ids": [], "artifact_ids": []})
 
     def test_metadata_only_artifact_reference_and_no_duplicate_storage(self):
         artifact=self.world.post('/api/artifacts',{'source':'external','story_id':self.world.story['story_id'],'display_name':'Station reference','retrieval_reference':'https://media.example.test/reference'})

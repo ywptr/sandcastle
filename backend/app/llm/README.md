@@ -311,3 +311,23 @@ adapter construction only; it is not accepted by Story request payloads. Registr
 browsing is provider-free. Missing provider returns 503; the frontend offers manual
 creation without steering beginners into API-key setup. See
 [Creative Direction](../creative_direction/README.md).
+
+## SC#0001A narrative translator compatibility and diagnostics
+
+`narrative_media_translator` prepares text-only production proposals through the
+adaptations endpoint. Scene generation success does not establish structured-output
+compatibility. The configured model must support the adapter API and the requested
+nested per-format schema. OpenAI `gpt-4.1-mini` was verified live with Responses
+structured parsing for Webtoon, Short Drama and Story Reel. No model/provider
+fallback or settings change was made. Google/Anthropic diagnostics are covered by
+fake transports; their current accounts/models were not invoked live.
+
+Translation failures retain sanitized HTTP 502 responses. Fixed server categories
+separate request, incomplete output, malformed/missing structured output, Pydantic,
+domain, and unexpected failures. Fixed reasons distinguish exact evidence,
+Character/Place/Artifact IDs, artifact binding, requested format and timing.
+Neither upstream exception bodies nor submitted content enter these diagnostics.
+Start troubleshooting with authenticated scope, selected role/provider/model,
+credential presence and encryption configuration; then inspect the category.
+See [production diagnostics](../media/production/README.md#sc0001a-safe-failure-diagnostics)
+for the full call chain, evidence contract, live findings and troubleshooting steps.

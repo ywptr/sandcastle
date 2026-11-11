@@ -18,7 +18,12 @@ class NarrativeMediaContext:
     creative_direction: dict = field(default_factory=dict)
 
     def narrative_data(self):
-        return {"story_id": self.story_id, "scene": self.scene.model_dump(mode="json"),
+        return {"allowed_ids": {
+                    "character_ids": [c.character_id for c in self.continuity.characters],
+                    "place_ids": [p.place_id for p in self.continuity.places],
+                    "artifact_ids": [r.reference_id for r in self.continuity.references
+                        if r.kind in {"artifact", "generated_artifact", "uploaded_artifact"}],
+                }, "story_id": self.story_id, "scene": self.scene.model_dump(mode="json"),
                 "continuity": self.continuity.model_dump(mode="json"), "target_format": self.target_format,
                 "workflow": self.workflow, "instruction": self.instruction, "creative_direction": self.creative_direction}
 

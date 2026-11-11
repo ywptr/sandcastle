@@ -1,6 +1,6 @@
 import json
 from app.llm.providers.google import GoogleStoryGenerator
-from app.llm.errors import ProviderFailed
+from app.media.production.diagnostics import parse_proposal
 from app.media.production.prompts import SYSTEM_INSTRUCTIONS
 from app.media.production.schemas import proposal_type
 
@@ -12,7 +12,4 @@ class GoogleNarrativeMediaTranslator(GoogleStoryGenerator):
             "contents": [{"role": "user", "parts": [{"text": json.dumps(context.narrative_data(), ensure_ascii=False)}]}],
             "generationConfig": {"maxOutputTokens": 16000, "candidateCount": 1, "responseModalities": ["TEXT"],
                 "responseMimeType": "application/json", "responseJsonSchema": schema.model_json_schema()}})
-        try:
-            return schema.model_validate_json(text)
-        except Exception:
-            raise ProviderFailed("Narrative translation returned invalid output.") from None
+        return parse_proposal(text, schema)
