@@ -14,11 +14,13 @@ class NarrativeMediaContext:
     source_digest: str
     context_digest: str
     instruction: str | None = None
+    output_language: str | None = None
     # Future typed Creative Direction can be added here without changing adapters.
     creative_direction: dict = field(default_factory=dict)
 
     def narrative_data(self):
-        return {"allowed_ids": {
+        from app.languages.service import production_language
+        return {"language_context": production_language(self.continuity.story.language, self.output_language), "allowed_ids": {
                     "character_ids": [c.character_id for c in self.continuity.characters],
                     "place_ids": [p.place_id for p in self.continuity.places],
                     "artifact_ids": [r.reference_id for r in self.continuity.references

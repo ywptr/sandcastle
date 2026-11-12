@@ -30,7 +30,7 @@ def validate_genres(primary, secondary):
 def creative_constraints(language, primary, secondary):
     rules = []
     if language and language != "und":
-        rules.append(f"Write generated story content and suggestions in {LANGUAGE_NAMES[language]} ({language}), regardless of request or UI language. Only an explicit Story metadata update changes this language.")
+        rules.append(f"Write generated story content and suggestions in {LANGUAGE_NAMES[language]} ({language}), regardless of the user instruction or UI language. This is the resolved operation target (an explicit typed override takes precedence over saved Story language). Never update Story metadata from a generation request.")
     if primary or secondary:
         rules.append(f"Primary genre: {primary or 'unspecified'}; secondary genres: {', '.join(secondary) or 'none'}. Use as soft guidance for tone, pacing, plot suggestions and prose style. Genre is not Canon; never invent facts or override Canon to satisfy genre.")
     return tuple(rules)

@@ -30,7 +30,7 @@ async def translate(story_id: str, scene_id: str, request: TranslationRequest, r
     db: Session = Depends(get_db), identity: AuthenticatedIdentity = Depends(get_current_identity),
     resolver=Depends(get_translator_resolver)):
     # Authenticate and check ownership before selecting any credential or invoking a provider.
-    context = _call(service.build_context, db, story_id, scene_id, identity.user_id, request.target_format, request.instruction)
+    context = _call(service.build_context, db, story_id, scene_id, identity.user_id, request.target_format, request.instruction, request.output_language)
     translator = resolver(db, identity.user_id, "narrative_media_translator")
     result = await service.translate_scene(db, context, translator)
     response.headers["Cache-Control"] = "no-store"

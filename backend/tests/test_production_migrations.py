@@ -5,7 +5,7 @@ from pathlib import Path
 from unittest.mock import patch
 from alembic import command
 from sqlalchemy import create_engine, inspect, text
-from test_migrations import config
+from test_migrations import config, strip_language_provenance
 from app.db.database import Base
 
 
@@ -14,6 +14,7 @@ class ProductionMigrationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             url='sqlite:///'+str(Path(directory)/'production.db');engine=create_engine(url)
             Base.metadata.create_all(engine,tables=[t for t in Base.metadata.sorted_tables if t.name not in ('approved_media_adaptations','creative_direction_snapshots')])
+            strip_language_provenance(engine)
             with engine.begin() as connection:
                 connection.execute(text("INSERT INTO llm_role_bindings (scope_type,scope_id,role,provider,updated_at) VALUES ('user','synthetic','creative_writer','openai',CURRENT_TIMESTAMP)"))
             with patch.dict(os.environ,DATABASE_URL=url):

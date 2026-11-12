@@ -84,5 +84,9 @@ class StoryWorkflowInput(InputModel):
     configuration: WorkflowConfiguration | None = None
 
 
-class WorkflowAction(InputModel):
+from app.languages.service import LanguageOptions
+
+
+class WorkflowAction(LanguageOptions):
+    user_message: str | None = Field(default=None, max_length=1000)
     scene_id: str | None = None

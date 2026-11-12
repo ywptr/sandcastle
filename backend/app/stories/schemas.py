@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 from app.stories.metadata import Language, Genre, SecondaryGenres, validate_genres
@@ -23,8 +24,13 @@ class StoryCreate(StoryMetadata):
     objective: str | None = None
 
 
+class StoryCreateRequest(StoryCreate):
+    language_mode: Literal["automatic", "explicit"] | None = None
+
+
 class StoryResponse(BaseModel):
     story_id: str
+    language_provenance: dict | None = None
     user_id: str
     title: str
     premise: str | None
@@ -42,6 +48,7 @@ class StoryResponse(BaseModel):
 
 
 class StoryUpdate(PatchModel):
+    expected_updated_at: datetime | None = None
     nullable_fields = {"premise", "objective", "language", "primary_genre"}
     language: Language | None = None
     primary_genre: Genre | None = None

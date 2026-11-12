@@ -34,6 +34,14 @@ def create_historical_baseline(engine, tables):
                 connection.exec_driver_sql(f"ALTER TABLE canon_entries DROP COLUMN {name}")
 
 
+def strip_language_provenance(engine):
+    assert engine.dialect.name == "sqlite"
+    with engine.begin() as connection:
+        for table, column in [("stories", "language_provenance"), ("story_actions", "language_context")]:
+            if table in inspect(connection).get_table_names() and column in {item["name"] for item in inspect(connection).get_columns(table)}:
+                connection.exec_driver_sql(f"ALTER TABLE {table} DROP COLUMN {column}")
+
+
 def upgrade_fixture_to_head():
     # Historical fixtures use current metadata; remove synthetic M13 columns
     # before exercising the real migration. No production connection is used.
@@ -45,6 +53,7 @@ def upgrade_fixture_to_head():
             if name in columns:
                 connection.exec_driver_sql(f"ALTER TABLE stories DROP COLUMN {name}")
     engine.dispose()
+    strip_language_provenance(engine)
     command.upgrade(config(), "head")
 
 

@@ -1,6 +1,7 @@
 from typing import Literal
 from pydantic import Field
 from app.validation import InputModel
+from app.languages.service import LanguageOptions
 from app.stories.schemas import StoryCreate, StoryMetadata
 from app.stories.metadata import Language
 
@@ -22,7 +23,7 @@ class DirectionInput(InputModel):
     expected_revision: int = Field(default=0, ge=0)
 
 
-class RecommendationInput(InputModel):
+class RecommendationInput(LanguageOptions):
     idea: str = Field(min_length=1, max_length=8000)
     target_format: Format
     language: Language | None = None
@@ -38,6 +39,11 @@ class Recommendation(StoryMetadata):
     warnings: list[str] = Field(default_factory=list, max_length=12)
 
 
+class RecommendationResponse(Recommendation):
+    language_context: dict | None = None
+
+
 class StartStory(InputModel):
+    language_mode: Literal["automatic", "explicit"] | None = None
     story: StoryCreate
     creative_direction: DirectionInput

@@ -57,7 +57,9 @@ def commit(db):
 def start(db, user_id, request):
     # Ordinary Story plus approved direction, in one transaction. No onboarding Story type.
     try:
-        story = Story(user_id=user_id, **request.story.model_dump())
+        from app.languages.service import creation_language
+        provenance = creation_language(request.story.premise, request.story.language, request.language_mode)
+        story = Story(user_id=user_id, language_provenance=provenance, **request.story.model_dump())
         db.add(story)
         db.flush()
         append(db, user_id, story, request.creative_direction)

@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from app.api.dependencies import get_current_identity, get_db
 from app.creative_direction import service
 from app.creative_direction.registry import styles, style_snapshot
-from app.creative_direction.schemas import DirectionInput, RecommendationInput, Recommendation, StartStory
+from app.creative_direction.schemas import DirectionInput, RecommendationInput, Recommendation, RecommendationResponse, StartStory
 from app.llm.resolver import resolve_adapter
 from app.stories.schemas import StoryResponse
 
@@ -20,14 +20,24 @@ def list_styles(identity=Depends(get_current_identity)):
     return styles()
 
 
-@router.post("/styles/recommend", response_model=Recommendation)
+@router.post("/styles/recommend", response_model=RecommendationResponse)
 async def recommend(request: RecommendationInput, identity=Depends(get_current_identity), recommender=Depends(get_recommender)):
+    from app.languages.service import detect, conversation_language, validate_output
+    detected = detect(request.idea)
+    conversation = conversation_language(request.idea, request.response_language, request.conversation_preference)
+    effective = request.output_language or (request.language if request.language != "und" else None) or (detected["language"] if not detected["review_required"] else None)
+    envelope = request.model_dump()
+    envelope.update(language=effective, response_language=conversation["language"])
     try:
-        proposal = Recommendation.model_validate(await recommender.recommend({"narrative_data":request.model_dump(),"style_registry":styles()}))
+        proposal = Recommendation.model_validate(await recommender.recommend({"narrative_data":envelope,"style_registry":styles()}))
         style_snapshot(proposal.storytelling_style_id)
-        if proposal.target_format != request.target_format or (request.language and proposal.language != request.language):
+        if proposal.target_format != request.target_format or (effective and proposal.language != effective):
             raise ValueError()
-        return JSONResponse(proposal.model_dump(mode="json"),headers={"Cache-Control":"no-store"})
+        proposal.language = effective or "und"
+        validation = validate_output(proposal.rationale, conversation["language"])
+        result = proposal.model_dump(mode="json")
+        result["language_context"] = dict(detection=detected, conversation=conversation, validation=validation)
+        return JSONResponse(result,headers={"Cache-Control":"no-store"})
     except Exception:
         raise HTTPException(502,"Creative recommendation unavailable. Continue manually.") from None
 

@@ -55,7 +55,7 @@ async def perform_step(db, story_id, user_id, step_id, action, *, generator, ext
     if step_id == "narrative_guidance":
         from app.guidance.service import suggest_next_scene
         from app.guidance.schemas import SuggestionOptions
-        return await suggest_next_scene(db, story_id, user_id, SuggestionOptions(**config.guidance.model_dump()), generator)
+        return await suggest_next_scene(db, story_id, user_id, SuggestionOptions(**config.guidance.model_dump(), additional_instruction=action.user_message, response_language=action.response_language, conversation_preference=action.conversation_preference), generator)
     from app.canon import candidate_service as canon
     if step_id == "canon_review":
         return canon.list_candidates(db, story_id, user_id, status="pending", scene_id=action.scene_id)

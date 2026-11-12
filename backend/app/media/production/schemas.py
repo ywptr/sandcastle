@@ -168,7 +168,12 @@ class CompiledInstruction(InputModel):
     effective: str
 
 
+from app.languages.service import ConcreteLanguage
+
+
 class MediaProductionPlan(ProductionProposal):
+    output_language: ConcreteLanguage | None = None
+    language_context: dict | None = None
     plan_id: UUID = Field(default_factory=uuid4)
     story_id: Name
     scene_id: Name
@@ -193,6 +198,7 @@ class MediaProductionPlan(ProductionProposal):
 
 
 class TranslationRequest(InputModel):
+    output_language: ConcreteLanguage | None = None
     target_format: TargetFormat
     instruction: Note | None = None
 

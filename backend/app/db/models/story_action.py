@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import uuid4
 
-from sqlalchemy import DateTime, ForeignKey, String, Text
+from sqlalchemy import DateTime, ForeignKey, String, Text, JSON
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.database import Base
@@ -32,6 +32,7 @@ class StoryAction(Base):
         Text,
     )
 
+    language_context: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     status: Mapped[str] = mapped_column(
         String(30),
         default="pending",

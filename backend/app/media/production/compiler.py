@@ -8,6 +8,9 @@ from app.media.schemas import MediaContext, MediaPlan, MediaPurpose, MediaReques
 
 def plan_fingerprint(plan):
     value = plan.model_dump(mode="json", exclude={"compiled_instructions", "created_at"})
+    for field in ("output_language", "language_context"):
+        if value.get(field) is None:
+            value.pop(field, None)
     return hashlib.sha256(json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
 
 
@@ -38,7 +41,7 @@ def compile_instructions(plan):
         lines += [f"- [{c.type}] {c.key}: {c.value}" for c in context.canon]
         lines += [*plan.continuity_notes, *beat.continuity_notes,
                   f"Audience: {context.guidance.audience}; maturity ceiling: {context.guidance.maturity_rating}",
-                  f"Story language context: {context.story.language or 'retain source language'}; preserve reviewed dialogue/text exactly, including explicitly requested language changes.",
+                  f"Story language context: {plan.output_language or context.story.language or 'English fallback'}; preserve reviewed dialogue/text exactly, including explicitly requested language changes.",
                   "Exclusions: no invented events, identities, outcomes, capabilities, or unreviewed dialogue; preserve uncertainty.",
                   "Artifact references are metadata identifiers only: " + ", ".join(beat.artifact_ids)]
         compiled = "\n".join(lines)

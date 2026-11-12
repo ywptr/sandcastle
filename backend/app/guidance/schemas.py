@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 from app.validation import InputModel
+from app.languages.service import LanguageOptions
 
 Audience = Literal["child", "teen", "adult"]
 Maturity = Literal["general", "mild", "moderate", "mature"]
@@ -36,7 +37,7 @@ class GuidanceProfileResponse(GuidanceProfileInput):
     model_config = ConfigDict(from_attributes=True)
 
 
-class SuggestionOptions(InputModel):
+class SuggestionOptions(LanguageOptions):
     count: int = Field(default=3, ge=1, le=5)
     recent_scene_count: int = Field(default=4, ge=1, le=5)
     additional_instruction: Annotated[str, StringConstraints(max_length=1000)] | None = None
@@ -50,5 +51,6 @@ class Suggestion(InputModel):
 
 class SuggestionResponse(BaseModel):
     story_id: str
+    language_context: dict | None = None
     strategy: str = "deterministic"
     suggestions: list[Suggestion]

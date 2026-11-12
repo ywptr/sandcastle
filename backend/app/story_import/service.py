@@ -47,11 +47,19 @@ async def analyze_import(request: ImportAnalysisRequest, analyzer: StoryImportAn
         # Revalidate even model instances; adapters and fakes are not trusted schema authorities.
         proposal = ImportAnalysis.model_validate(raw.model_dump() if isinstance(raw, BaseModel) else raw)
         validate_evidence(proposal, request.content)
+        from app.languages.service import detect
+        detection = detect(request.content)
+        language = detection["language"]
+        if not detection["review_required"]:
+            proposal.story.detected_language = language
+        if language != "und":
+            from app.languages.service import validate_output
+            validate_output(" ".join(filter(None,[proposal.story.premise, proposal.story.objective])), language)
         proposal.characters = deduplicate_entities(proposal.characters)
         proposal.places = deduplicate_entities(proposal.places)
         for candidate in proposal.canon_candidates:
             candidate.as_extracted_fact()  # Reuse M7 validation without its persistence services.
     except Exception as error:
         raise InvalidImportAnalysis("Import analysis failed or returned an invalid proposal") from error
-    return ImportProposal(**proposal.model_dump(), source_type=request.source_type,
+    return ImportProposal(**proposal.model_dump(), language_detection=detection, source_type=request.source_type,
         source_hash=hashlib.sha256(request.content.encode("utf-8")).hexdigest())

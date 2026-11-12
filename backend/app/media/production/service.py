@@ -56,7 +56,7 @@ def binding_context(db, story_id, user_id, references):
     return result
 
 
-def build_context(db, story_id, scene_id, user_id, target_format, instruction=None):
+def build_context(db, story_id, scene_id, user_id, target_format, instruction=None, output_language=None):
     story = _require_story(db, story_id, user_id)
     scene = get_scene(db, story_id, scene_id)
     if scene is None:
@@ -79,7 +79,7 @@ def build_context(db, story_id, scene_id, user_id, target_format, instruction=No
     if len(json.dumps(context_json, ensure_ascii=False)) > 160000:
         raise InvalidMediaIntent("Production context exceeds the initial 160,000-character limit")
     return NarrativeMediaContext(story_id, SceneResponse.model_validate(scene), continuity, target_format,
-        workflow, source_digest(scene), digest(context_json), instruction)
+        workflow, source_digest(scene), digest(context_json), instruction, output_language)
 
 
 def validate_proposal(context, proposal):
@@ -133,13 +133,23 @@ DOMAIN_RULES = {
 }
 
 
+def validate_narrative_language(proposal, language):
+    from app.languages.service import validate_output
+    values = [proposal.summary, *(getattr(beat, field, "") for beat in units(proposal.production) for field in ("dialogue", "caption", "voiceover", "on_screen_text"))]
+    statuses = [validate_output(text, language) for text in values if text.strip()]
+    return "verified" if statuses and all(status == "verified" for status in statuses) else "unverified_short_or_ambiguous"
+
+
 async def translate_scene(db, context, translator):
     category, reason = "unexpected_translation_failure", "internal_error"
     try:
         raw = await translator.translate(context)
         proposal = ProductionProposal.model_validate(raw.model_dump() if isinstance(raw, BaseModel) else raw)
         validate_proposal(context, proposal)
-        plan = MediaProductionPlan(**proposal.model_dump(), story_id=context.story_id, scene_id=context.scene.scene_id,
+        from app.languages.service import production_language, validate_output
+        resolution = production_language(context.continuity.story.language, context.output_language)
+        validation = validate_narrative_language(proposal, resolution["language"])
+        plan = MediaProductionPlan(output_language=context.output_language, language_context={"production":resolution,"validation":validation},**proposal.model_dump(), story_id=context.story_id, scene_id=context.scene.scene_id,
             target_format=context.target_format, source_digest=context.source_digest, context_digest=context.context_digest,
             continuity_context=context.continuity, instruction=context.instruction)
         add_context_warnings(db, context, plan)
@@ -174,16 +184,20 @@ async def translate_scene(db, context, translator):
 def review_plan(db, story_id, scene_id, user_id, plan):
     if (plan.story_id, plan.scene_id) != (story_id, scene_id):
         raise InvalidMediaIntent("Production plan belongs to a different Story or Scene")
-    context = build_context(db, story_id, scene_id, user_id, plan.target_format, plan.instruction)
+    context = build_context(db, story_id, scene_id, user_id, plan.target_format, plan.instruction, plan.output_language)
     if plan.source_digest != context.source_digest:
         raise HTTPException(409, "Scene changed since this plan was created. Create a new adaptation.")
     if plan.context_digest != context.context_digest or plan.continuity_context != context.continuity:
         raise HTTPException(409, "Story, Canon, references, or guidance changed. Create a new adaptation.")
     validate_proposal(context, plan)
+    from app.languages.service import production_language, validate_output
+    resolution = production_language(context.continuity.story.language, plan.output_language)
+    validate_narrative_language(plan, resolution["language"])
     if plan.overrides and context.workflow["difficulty"] not in {"difficult", "impossible"}:
         raise InvalidMediaIntent("Explicit instruction overrides require Difficult or Impossible difficulty")
     # Never trust client compiler output, and never let overrides replace authoritative context.
     plan = MediaProductionPlan.model_validate(plan.model_dump())
+    plan.language_context = {"production":resolution,"validation":validate_narrative_language(plan, resolution["language"])}
     add_context_warnings(db, context, plan)
     plan.compiled_instructions = compile_instructions(plan)
     return CompiledProduction(plan=plan, manifest=compile_manifest(plan))

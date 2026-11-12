@@ -81,15 +81,18 @@ async def generate_scene(
     request: str,
     canon_entries: list,
     generator: StoryGenerator,
+    language_context: dict | None = None,
 ) -> Scene:
     existing_scenes = list_scenes(
         db,
         story.story_id,
     )
 
+    from app.languages.service import production_language, validate_output
+    resolved = language_context["production"] if language_context else production_language(story.language)
     context = SceneGenerationContext(
         title=story.title,
-        language=story.language, primary_genre=story.primary_genre, secondary_genres=list(story.secondary_genres),
+        language=resolved["language"], primary_genre=story.primary_genre, secondary_genres=list(story.secondary_genres),
         premise=story.premise,
         objective=story.objective,
         canon=[
@@ -124,6 +127,9 @@ async def generate_scene(
     if not content or not content.strip():
         raise ValueError("Generator returned empty scene content")
 
+    validation = validate_output(content, resolved["language"])
+    if language_context is not None:
+        language_context["validation"] = validation
     return create_scene(
         db,
         story_id=story.story_id,

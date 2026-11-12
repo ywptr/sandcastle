@@ -37,7 +37,7 @@ def proposal(target="webtoon", character_ids=None, place_ids=None, artifact_ids=
         production = dict(target_format=target, target_duration_seconds=6, narration_text_strategy="Read the reveal before the reaction.", visual_strategy="Alternate place and reaction.", beats=[
             dict(**base, beat_number=1, duration=3, on_screen_text="A signal.", voiceover="", transition_hint="Cut."),
             dict(**base, beat_number=2, duration=3, on_screen_text="Then silence.", voiceover="Elias…", transition_hint="Hold.")])
-    return dict(summary="A radio interrupts the silence.", production=production, continuity_notes=["Preserve the unresolved transmission."],
+    return dict(summary="Suara radio memecah keheningan stasiun dan membuat Mara menoleh dengan penuh rasa ingin tahu.", production=production, continuity_notes=["Preserve the unresolved transmission."],
         warnings=[dict(code="continuity_uncertainty", message="Confirm whether Elias is a recorded or live voice.")])
 
 

@@ -110,5 +110,6 @@ class ImportAnalysis(InputModel):
 
 
 class ImportProposal(ImportAnalysis):
+    language_detection: dict | None = None
     source_type: SourceType
     source_hash: str

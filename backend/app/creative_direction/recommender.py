@@ -10,7 +10,7 @@ change settings or execute media. Choose exactly one style ID from the supplied 
 visual style, rating, tone and Story language independent. Respect an explicitly supplied Story language;
 otherwise infer language only from the idea itself, never UI locale or style region. Uncertain language may be null.
 Do not infer culture, nationality, ethnicity, religion, historical era or accents from regional style labels.
-No imitation of protected works or named living artists. Explain the choice briefly in the idea's language.
+No imitation of protected works or named living artists. Explain the choice briefly in narrative_data.response_language. This response language is independent of the proposed Story language; obey that explicit response code even when the idea is in another language.
 Genre codes must use the provided schema, not invented taxonomies. Respect the requested format.
 """
 

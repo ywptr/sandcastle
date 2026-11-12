@@ -64,7 +64,7 @@ class StoryMetadataTests(unittest.TestCase):
         self.patch(self.root, {'language': None})
         with patch('app.api.stories.get_story_generator', return_value=fake):
             self.post(self.root + '/scenes/generate', {'request': 'Continue'}, expected=200)
-        self.assertIsNone(fake.context.language)
+        self.assertEqual(fake.context.language,"en")  # disclosed legacy fallback
         self.assertEqual(creative_constraints(None, None, []), ())
 
     def test_guidance_and_workflow_context(self):

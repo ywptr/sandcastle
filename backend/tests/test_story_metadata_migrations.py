@@ -8,7 +8,7 @@ from uuid import uuid4
 from alembic import command
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
-from test_migrations import config
+from test_migrations import config, strip_language_provenance
 
 
 class MetadataMigrationTests(unittest.TestCase):
@@ -18,6 +18,7 @@ class MetadataMigrationTests(unittest.TestCase):
                 from app.db.database import Base
                 fixture_engine = create_engine(url)
                 Base.metadata.create_all(fixture_engine, tables=[t for t in Base.metadata.sorted_tables if not t.name.startswith("llm_") and t.name not in ("approved_media_adaptations", "creative_direction_snapshots")])
+                strip_language_provenance(fixture_engine)
                 with fixture_engine.begin() as connection:
                     for column in ('language', 'primary_genre', 'secondary_genres'):
                         connection.exec_driver_sql(f'ALTER TABLE stories DROP COLUMN {column}')

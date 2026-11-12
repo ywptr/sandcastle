@@ -38,6 +38,7 @@ class Story(Base):
     )
 
     language: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    language_provenance: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     primary_genre: Mapped[str | None] = mapped_column(String(30), nullable=True)
     secondary_genres: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list, server_default="[]")
 

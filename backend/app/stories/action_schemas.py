@@ -23,6 +23,7 @@ class AuthorityDecisionResponse(BaseModel):
 
 
 class StoryActionResponse(BaseModel):
+    language_context: dict | None = None
     action_id: str
     story_id: str
     action_type: str
@@ -32,6 +33,7 @@ class StoryActionResponse(BaseModel):
     decision: AuthorityDecisionResponse
 
 class StoryActionListItem(BaseModel):
+    language_context: dict | None = None
     action_id: str
     story_id: str
     action_type: str

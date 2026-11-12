@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from pydantic import BaseModel
+from app.languages.service import LanguageOptions
 from app.validation import InputModel, Name, NonBlank, PatchModel
 
 from app.stories.action_schemas import (
@@ -33,10 +34,12 @@ class SceneResponse(BaseModel):
     }
 
 
-class SceneGenerateRequest(InputModel):
+class SceneGenerateRequest(LanguageOptions):
     request: NonBlank
 
 
 class SceneGenerateResponse(BaseModel):
+    language_context: dict | None = None
+    assistant_message: str | None = None
     action: StoryActionResponse
     scene: SceneResponse | None

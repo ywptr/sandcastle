@@ -35,7 +35,7 @@ from app.stories.action_service import (
     evaluate_story_action,
 )
 from app.stories.schemas import (
-    StoryCreate,
+    StoryCreate, StoryCreateRequest,
     StoryResponse,
     StoryUpdate,
 )
@@ -148,6 +148,9 @@ async def generate_scene_endpoint(
         identity,
     )
 
+    from app.languages.service import production_language, conversation_language, RECEIPTS, PENDING_RECEIPTS
+    language_context = dict(production=production_language(story.language, request.output_language),
+        conversation=conversation_language(request.request, request.response_language, request.conversation_preference, story.language))
     story_generator = get_story_generator(db, identity.user_id)
 
     action = create_story_action(
@@ -157,6 +160,8 @@ async def generate_scene_endpoint(
         request=request.request,
     )
 
+    if action.action_type == "scene.generate":
+        action.language_context = language_context
     decision = evaluate_story_action(
         db,
         story=story,
@@ -170,7 +175,8 @@ async def generate_scene_endpoint(
                 action,
                 decision,
             ),
-            scene=None,
+            scene=None, language_context=language_context,
+            assistant_message=PENDING_RECEIPTS[language_context["conversation"]["language"]],
         )
 
     canon_entries = list_canon_entries(
@@ -186,6 +192,7 @@ async def generate_scene_endpoint(
             request=request.request,
             canon_entries=canon_entries,
             generator=story_generator,
+            language_context=language_context,
         )
     except IntegrityError:
         db.rollback()
@@ -197,6 +204,7 @@ async def generate_scene_endpoint(
         action.status = "failed"
         db.commit()
         raise HTTPException(502, "Scene generation failed. Your existing scenes are unchanged.")
+    action.language_context = dict(language_context)
     action.status = "completed"
     db.commit()
 
@@ -205,7 +213,8 @@ async def generate_scene_endpoint(
             action,
             decision,
         ),
-        scene=scene,
+        scene=scene, language_context=language_context,
+        assistant_message=RECEIPTS[language_context["conversation"]["language"]],
     )
 
 def require_story(
@@ -236,7 +245,7 @@ def action_to_list_item(
         action.action_id,
     )
     return StoryActionListItem(
-        action_id=action.action_id,
+        action_id=action.action_id, language_context=action.language_context,
         story_id=action.story_id,
         action_type=action.action_type,
         request=action.request,
@@ -250,7 +259,7 @@ def action_to_response(
     decision,
 ) -> StoryActionResponse:
     return StoryActionResponse(
-        action_id=action.action_id,
+        action_id=action.action_id, language_context=action.language_context,
         story_id=action.story_id,
         action_type=action.action_type,
         request=action.request,
@@ -265,7 +274,7 @@ def action_to_response(
     status_code=201,
 )
 def create_story_endpoint(
-    payload: StoryCreate,
+    payload: StoryCreateRequest,
     db: Session = Depends(get_db),
     identity: AuthenticatedIdentity = Depends(
         get_current_identity
@@ -278,6 +287,7 @@ def create_story_endpoint(
         premise=payload.premise,
         objective=payload.objective,
         language=payload.language,
+        language_mode=payload.language_mode,
         primary_genre=payload.primary_genre,
         secondary_genres=payload.secondary_genres,
     )

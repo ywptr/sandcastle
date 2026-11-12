@@ -76,3 +76,6 @@ app.include_router(production_router, prefix="/api")
 
 from app.api.creative_direction import router as creative_direction_router
 app.include_router(creative_direction_router, prefix="/api")
+
+from app.api.languages import router as language_router
+app.include_router(language_router, prefix="/api")
