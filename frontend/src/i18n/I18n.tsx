@@ -7,7 +7,7 @@ export function I18nProvider({children}: {children: ReactNode}) {
     const locale = resolveLocale(preference,languages);
     useEffect(() => { document.documentElement.lang = locale; },[locale]);
     useEffect(() => { const change = () => setLanguages([...navigator.languages]); window.addEventListener("languagechange",change); return () => window.removeEventListener("languagechange",change); },[]);
-    function setPreference(value: LocalePreference) { updatePreference(value); try { if (value === "auto") localStorage.removeItem(preferenceKey); else localStorage.setItem(preferenceKey,value); } catch { /* Device storage may be unavailable; current view still updates. */ } }
+    function setPreference(value: LocalePreference) { updatePreference(value); try { localStorage.setItem(preferenceKey,value); } catch { /* Device storage may be unavailable; current view still updates. */ } }
     return <I18nContext value={{locale,preference,unsupported:preference === "auto" && !normalizeLocale(languages[0] ?? ""),setPreference,t:(key,values) => translate(locale,key,values)}}>{children}</I18nContext>;
 }
 

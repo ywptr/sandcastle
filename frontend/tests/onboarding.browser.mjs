@@ -32,12 +32,12 @@ async function session(locale){
  return {context,page,stories,writes,setFailure:()=>{failRecommendation=true;}};
 }
 try{
- for(const [locale,title]of [['en-US','What do you want to create?'],['id-ID','Cerita apa yang ingin kamu buat?'],['fr-FR','What do you want to create?']]){
-  const s=await session(locale),{page}=s;await page.goto(origin,{waitUntil:'networkidle'});await page.getByRole('heading',{name:title,exact:true}).waitFor();assert.equal(await page.locator('html').getAttribute('lang'),locale==='id-ID'?'id':'en');
-  if(locale==='fr-FR'){await page.getByRole('button',{name:'Settings',exact:true}).click();await page.getByText('Your browser language is not supported yet.',{exact:false}).waitFor();}
+ for(const [locale,title]of [['en-US','Create your next story series'],['id-ID','Buat serial cerita berikutnya'],['fr-FR','Create your next story series']]){
+  const s=await session(locale),{page}=s;if(locale==='id-ID')await page.addInitScript(()=>{if(!localStorage.getItem('sandcastle.uiLocale'))localStorage.setItem('sandcastle.uiLocale','id');});await page.goto(origin,{waitUntil:'networkidle'});await page.getByRole('heading',{name:title,exact:true}).waitFor();assert.equal(await page.locator('html').getAttribute('lang'),locale==='id-ID'?'id':'en');
+  if(locale==='fr-FR'){await page.getByRole('button',{name:'Settings',exact:true}).click();await page.getByLabel('Interface language').last().selectOption('auto');await page.getByText('Your browser language is not supported yet.',{exact:false}).waitFor();}
   if(locale==='id-ID'){
-   await page.getByRole('button',{name:'Pengaturan',exact:true}).click();await page.getByLabel('Bahasa antarmuka').selectOption('en');await page.reload({waitUntil:'networkidle'});await page.getByRole('heading',{name:'What do you want to create?',exact:true}).waitFor();
-   await page.getByRole('button',{name:'Settings',exact:true}).click();await page.getByLabel('Interface language').selectOption('auto');await page.getByRole('button',{name:'Kembali ke studio',exact:true}).click();await page.getByRole('heading',{name:title,exact:true}).waitFor();
+   await page.getByRole('button',{name:'Pengaturan',exact:true}).click();await page.getByLabel('Bahasa antarmuka').last().selectOption('en');await page.reload({waitUntil:'networkidle'});await page.getByRole('heading',{name:'Create your next story series',exact:true}).waitFor();
+   await page.getByRole('button',{name:'Settings',exact:true}).click();await page.getByLabel('Interface language').last().selectOption('auto');await page.getByRole('button',{name:'Kembali ke studio',exact:true}).click();await page.getByRole('heading',{name:title,exact:true}).waitFor();
    s.setFailure();await page.getByRole('button',{name:'Serial Webtoon',exact:true}).click();await page.getByLabel('Ceritakan ide ceritamu').fill('Dua mahasiswa bertemu di perpustakaan.');await page.getByRole('button',{name:'Rekomendasikan arahan kreatif',exact:true}).click();await page.getByText('Ini bukan rekomendasi AI.',{exact:false}).waitFor();
    await page.getByRole('button',{name:'Sesuaikan',exact:true}).click();await page.getByLabel('Bahasa cerita / dialog').selectOption('en');assert.equal(await page.locator('html').getAttribute('lang'),'id');
    for(const width of[390,320]){await page.setViewportSize({width,height:900});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);await page.screenshot({path:`${out}/create-id-${width}.png`,fullPage:true});}

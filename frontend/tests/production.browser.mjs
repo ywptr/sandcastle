@@ -82,6 +82,13 @@ try {
     assert.equal(await page.getByLabel("Plan summary", { exact: true }).count(), 0, "Easy should start with a summary");
     await page.getByRole("button", { name: "Review plan", exact: true }).click();
     await page.getByLabel(/^Visual description/).first().fill("Wide view of Mara beside the radio.");
+    const nav = page.getByRole("navigation", { name: "Story workspace", exact: true });
+    await nav.getByRole("button", { name: "Characters", exact: true }).click();
+    await nav.getByRole("button", { name: /^Scenes/ }).first().click();
+    assert.equal(await page.getByLabel(/^Visual description/).first().inputValue(), "Wide view of Mara beside the radio.");
+    const productionToggle = page.getByRole("button", { name: "Production · Webtoon / Short Drama / Story Reel", exact: true });
+    await productionToggle.click(); await productionToggle.click();
+    assert.equal(await page.getByLabel(/^Visual description/).first().inputValue(), "Wide view of Mara beside the radio.");
     await page.getByRole("button", { name: "Move panel 1 down", exact: true }).click();
     assert.equal(await page.getByLabel(/^Visual description/).nth(1).inputValue(), "Wide view of Mara beside the radio.");
     await page.getByRole("button", { name: "Generation instructions", exact: true }).click();

@@ -327,9 +327,12 @@ SC#0001's existing creative_direction extension remains ready for that follow-up
 ### Interface language
 
 `src/i18n/` is a small React context plus keyed English/Indonesian resources.
-Precedence is explicit saved preference → normalized browser language → English.
-`id-ID` becomes id, `en-GB` becomes en, unsupported primary browser languages use
-en. Automatic removes the explicit preference and follows browser languagechange.
+Precedence is explicit saved preference → English for new users. A saved Automatic
+preference follows normalized browser language: `id-ID` becomes id, `en-GB` becomes
+en, and unsupported primary browser languages use en. Automatic is now stored
+explicitly as `auto` and follows browser languagechange. Existing `en`/`id` choices
+are retained. Earlier Automatic selections removed the key, so they cannot be
+distinguished from an absent preference; absent preferences now start in English.
 Every missing translation falls back to English. `<html lang>` follows the UI.
 Settings → General → Interface language offers Automatic, English and Indonesian.
 Only the explicit locale is stored at `sandcastle.uiLocale` in localStorage; no
@@ -354,3 +357,52 @@ usable. Screenshots and acceptance harness: `/tmp/sc0004-visuals/` and
 `tests/onboarding.browser.mjs`. Existing M14, provider Settings and production-plan
 browser harnesses remain regression checks. All use fixture APIs for authenticated
 editing; they do not make live billable/provider/media calls.
+
+
+## Studio shell — Phase B1
+
+The existing screens now share `components/studio/StudioShell.tsx`: a 68px branded
+header, 206px persistent desktop sidebar, compact header UI-language selector and
+an account menu with the existing Settings/sign-out actions. Below 951px, the same
+navigation model renders inside a native modal drawer. At phone widths the header
+is 61px. Keyboard focus wraps in both directions; Escape, close button, backdrop
+and returning to desktop close the drawer and restore normal page interaction.
+A skip link, current-page labels and visible focus styles support keyboard use.
+
+`styles/studio-shell.css` defines the approved purple/white tokens and scoped shell
+and shared-surface styles. The existing global stylesheet and feature layouts were
+retained. A container query adapts the existing workspace when the shell or series
+browser reduces its available width. Global navigation to Home, My Series, Story
+Workspace, Characters, Story World (Canon), Library (existing asset metadata) and
+Settings uses App's existing data; local Story tools still expose Scenes, Places,
+Universe, Workflow/Difficulty and the authority log. Selecting a global destination
+starts at the top of its content, beneath the sticky header. A selected Story is
+required for its context-specific navigation entries.
+
+Episode Editor, creative Templates, Export, Publish/Schedule, customer Billing and
+Help are disabled and labeled as unavailable. Workflow templates remain accessible
+in the existing Workflow controls. No mock quotas, purchases, media previews,
+prototype styles, canned chat or domain localStorage state were added. The brand
+uses locally authored SVG geometry; no embedded prototype illustration was reused.
+No package, backend API, authentication or schema changes were needed.
+
+Home, creation/import, Story Setup, new chat and Style Library redesigns remain
+outside B1. The existing eight versioned presets, explicit creation/approval,
+Canon review, provider settings, source evidence and production-plan behavior
+remain authoritative. Language preferences follow the rules above; a UI-language
+change never changes Story language or sends a generation request.
+
+Validation: `npm test`, `npm run lint`, and `npm run build` (including TypeScript).
+The B1 browser harness, alongside all existing browser suites, uses isolated API
+fixtures for signed-in screens. Run with an externally supplied Playwright module:
+
+```sh
+PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs node tests/studio-shell.browser.mjs
+```
+
+The B1 harness checks navigation, disabled/contextual destinations, skip link,
+mobile keyboard/focus/close behavior, unsaved draft retention, responsive widths,
+English default and saved language choices, unchanged Story language, and the
+existing signed-out entry/IS authorize redirect. It does not complete live login.
+See [B1 screenshot review](docs/design-reference/phase-b1-review/index.html) for
+1440×900 and 390×844 before/after/reference captures and remaining differences.

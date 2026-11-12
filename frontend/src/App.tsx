@@ -5,15 +5,20 @@ import { useI18n } from "./i18n/context";
 import { StorySelector } from "./components/StorySelector";
 import { SettingsPage } from "./components/SettingsPage";
 import { settingsDetail } from "./settings/copy";
-import { StoryWorkspace } from "./components/StoryWorkspace";
+import { StudioShell } from "./components/studio/StudioShell";
+import type { StudioDestination } from "./components/studio/navigation";
+import { StoryWorkspace, type WorkspaceSection, type WorkspaceMobileMode } from "./components/StoryWorkspace";
 
 function App() {
     const {t} = useI18n();
+    const [workspaceSection, setWorkspaceSection] = useState<WorkspaceSection>("overview");
+    const [workspaceMobileMode, setWorkspaceMobileMode] = useState<WorkspaceMobileMode>("chat");
     const [home, setHome] = useState(false);
     const [difficulty, setDifficulty] = useState("easy");
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [browserOpen, setBrowserOpen] = useState(true);
     const [retry, setRetry] = useState(0);
+    const [openedStoryIds, setOpenedStoryIds] = useState<string[]>([]);
     const [stories, setStories] = useState<Story[]>([]);
     const [selectedStoryId, setSelectedStoryId] = useState<string | null>(null);
     const [user, setUser] = useState<AuthUser | null>(null);
@@ -33,7 +38,9 @@ function App() {
                 setError(null);
                 setStories(result);
                 setHome(!result.length);
+                setBrowserOpen(result.length > 0);
                 setSelectedStoryId(result[0]?.story_id ?? null);
+                setOpenedStoryIds(result[0] ? [result[0].story_id] : []);
             } catch {
                 if (active) {
                     setError("app.error");
@@ -52,6 +59,7 @@ function App() {
             setSettingsOpen(false);
             setUser(null);
             setStories([]);
+            setOpenedStoryIds([]);
             setSelectedStoryId(null);
         } catch (failure) {
             setError(failure instanceof Error ? failure.message : "Could not sign out.");
@@ -65,29 +73,45 @@ function App() {
         <button className="primary-button" onClick={() => { window.location.href = loginUrl(); }}>{t("app.signIn")}</button>
     </div></div>;
 
-    return <div className={`app ${browserOpen ? "browser-open" : "browser-closed"}`}>
-        <header className="app-header"><div className="brand"><strong>Sandcastle<span className="brand-dot">✦</span></strong><span>{t("nav.studio")}</span>
-            <button type="button" className="secondary-button" aria-expanded={browserOpen} onClick={() => { setSettingsOpen(false); setBrowserOpen((v) => !v); }}>{t(browserOpen ? "nav.closeSeries" : "nav.browse")}</button>
-            <button type="button" className="secondary-button" onClick={() => {setHome(true);setSettingsOpen(false);setBrowserOpen(false);}}>{t("nav.home")}</button>
-            <button type="button" className="secondary-button" aria-pressed={settingsOpen} onClick={() => { setBrowserOpen(false); setSettingsOpen((v) => !v); }}>{t("nav.settings")}</button>
-            <div className="user-menu"><div><strong>{user.name ?? user.email}</strong><span>{user.email}</span></div>
-                <button className="secondary-button" onClick={handleLogout}>{t("nav.signOut")}</button></div>
-        </div></header>
+    function navigate(destination: StudioDestination) {
+        window.scrollTo(0, 0);
+        setSettingsOpen(destination === "settings");
+        if (destination !== "settings") setHome(destination === "home");
+        setBrowserOpen(destination === "series");
+        if (["workspace", "characters", "world", "library"].includes(destination)) {
+            setWorkspaceSection(destination === "characters" ? "characters" : destination === "world" ? "canon" : destination === "library" ? "assets" : "overview");
+            setWorkspaceMobileMode(destination === "workspace" ? "chat" : "tools");
+        }
+    }
+    function selectStory(story: Story) {
+        setSelectedStoryId(story.story_id);
+        setOpenedStoryIds(current => current.includes(story.story_id) ? current : [...current, story.story_id]);
+        navigate("workspace");
+    }
+    function handleCreated(story: Story) {
+        setStories(current => [story, ...current]);
+        selectStory(story);
+    }
+    const active: StudioDestination = settingsOpen ? "settings" : home ? "home" : browserOpen ? "series"
+        : workspaceSection === "characters" ? "characters" : ["canon", "places", "universe"].includes(workspaceSection) ? "world"
+        : workspaceSection === "assets" ? "library" : "workspace";
+
+    return <StudioShell user={user} active={active} hasStory={!!selectedStory} onNavigate={navigate} onLogout={() => { void handleLogout(); }}>
+        <div className={`app ${browserOpen ? "browser-open" : "browser-closed"}`}>
         {error && <p className="error" role="alert">{t(error)} <button type="button" onClick={() => setRetry((v) => v + 1)}>{t("common.retry")}</button></p>}
         <div className="app-body">
             <StorySelector stories={stories} selectedStoryId={selectedStoryId}
-                onStart={() => {setHome(true);setSettingsOpen(false);setBrowserOpen(false);}} onSelect={(story) => { setHome(false);setSelectedStoryId(story.story_id); setBrowserOpen(false); }} onCreated={(story) => {
-                    setHome(false);setStories((current) => [story, ...current]);
-                    setSelectedStoryId(story.story_id);
-                    setBrowserOpen(false);
-                }} />
-            <div className="app-content">{settingsOpen ? <SettingsPage user={user} initialDetail={settingsDetail(difficulty)} onClose={() => setSettingsOpen(false)} /> : home ? <GetStarted onDetailed={() => {setHome(false);setBrowserOpen(true);}} onCreated={(story) => {setStories((current) => [story,...current]);setSelectedStoryId(story.story_id);setHome(false);setBrowserOpen(false);}} /> : selectedStory ? <StoryWorkspace key={selectedStory.story_id}
-                story={selectedStory} onDifficultyChanged={setDifficulty} onStoryUpdated={(updated) => setStories((current) => current.map((story) =>
-                    story.story_id === updated.story_id ? updated : story))} />
-                : <GetStarted onDetailed={() => setBrowserOpen(true)} onCreated={(story) => {setStories((current) => [story,...current]);setSelectedStoryId(story.story_id);setBrowserOpen(false);}} />}
+                onStart={() => navigate("home")} onSelect={selectStory} onCreated={handleCreated} />
+            <div className="app-content"><div hidden={settingsOpen || !home}><GetStarted active={home && !settingsOpen} onDetailed={() => {setHome(false);setBrowserOpen(true);}} onCreated={handleCreated} /></div>{settingsOpen && <SettingsPage user={user} initialDetail={settingsDetail(difficulty)} onClose={() => setSettingsOpen(false)} />}
+                {stories.filter(item => openedStoryIds.includes(item.story_id)).map(item => <div key={item.story_id} hidden={settingsOpen || home || item.story_id !== selectedStoryId}>
+                    <StoryWorkspace active={!settingsOpen && !home && item.story_id === selectedStoryId}
+                        story={item} section={workspaceSection} onSectionChange={setWorkspaceSection} mobileMode={workspaceMobileMode} onMobileModeChange={setWorkspaceMobileMode} onDifficultyChanged={setDifficulty}
+                        onStoryUpdated={updated => setStories(current => current.map(value => value.story_id === updated.story_id ? updated : value))} />
+                </div>)}
             </div>
         </div>
-    </div>;
+        </div>
+    </StudioShell>;
 }
 
 export default App;

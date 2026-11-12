@@ -298,3 +298,21 @@ test("Get Started approval is atomic and read-only historical language is omitte
     assert.equal(calls[1][0],"/api/stories/start");assert.equal(calls[1][1].story.language,"id");
     assert.equal("language_at_approval" in calls[2][1],false);
 });
+
+
+test("new UI preferences default to English while saved English, Indonesian and Automatic survive", async (t) => {
+    const core = await server.ssrLoadModule("/src/i18n/core.ts");
+    let saved = null;
+    const previous = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+    t.after(() => { if (previous) Object.defineProperty(globalThis, "localStorage", previous); else delete globalThis.localStorage; });
+    Object.defineProperty(globalThis, "localStorage", { configurable: true, value: { getItem: () => saved } });
+    assert.equal(core.readPreference(), "en");
+    for (const preference of ["en", "id", "auto"]) {
+        saved = preference;
+        assert.equal(core.readPreference(), preference);
+    }
+    saved = "invalid";
+    assert.equal(core.readPreference(), "en");
+    Object.defineProperty(globalThis, "localStorage", { configurable: true, value: { getItem: () => { throw Error("Unavailable"); } } });
+    assert.equal(core.readPreference(), "en");
+});
